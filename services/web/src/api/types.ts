@@ -13,6 +13,8 @@ export interface Me {
   email: string;
   displayName: string | null;
   features: { labelReading: boolean; speechTranscription: boolean };
+  /** When the first-sign-in guide was finished or skipped; null until then. */
+  onboardedAt: string | null;
 }
 
 export interface Bean {

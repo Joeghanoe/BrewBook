@@ -146,6 +146,26 @@ public class ApiTests
     }
 
     [Fact]
+    public async Task Onboarding_is_stamped_once_per_user()
+    {
+        using var f = new ApiFactory();
+        var ada = f.ClientFor("ada@example.com");
+        var fresh = await ada.GetFromJsonAsync<MeResponse>("/api/v1/me");
+        Assert.Null(fresh!.OnboardedAt);
+
+        var stamped = await (await ada.PostAsync("/api/v1/me/onboarded", null)).Content.ReadFromJsonAsync<MeResponse>();
+        Assert.NotNull(stamped!.OnboardedAt);
+        var again = await ada.GetFromJsonAsync<MeResponse>("/api/v1/me");
+        Assert.Equal(stamped.OnboardedAt, again!.OnboardedAt);
+
+        var second = await (await ada.PostAsync("/api/v1/me/onboarded", null)).Content.ReadFromJsonAsync<MeResponse>();
+        Assert.Equal(stamped.OnboardedAt, second!.OnboardedAt);
+
+        var bob = await f.ClientFor("bob@example.com").GetFromJsonAsync<MeResponse>("/api/v1/me");
+        Assert.Null(bob!.OnboardedAt);
+    }
+
+    [Fact]
     public async Task Transcribe_without_a_provider_is_unavailable()
     {
         using var f = new ApiFactory();
