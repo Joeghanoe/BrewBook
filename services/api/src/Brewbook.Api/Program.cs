@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using Anthropic;
 using Brewbook.Api.Auth;
 using Brewbook.Api.Data;
 using Brewbook.Api.Features.Beans;
@@ -7,6 +6,7 @@ using Brewbook.Api.Features.Brews;
 using Brewbook.Api.Features.Labels;
 using Brewbook.Api.Features.Users;
 using Brewbook.Api.Features.Voice;
+using Brewbook.Api.Integrations.Gemini;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,7 +18,12 @@ if (builder.Configuration["PORT"] is { Length: > 0 } port)
 // ---- Composition root ------------------------------------------------------
 
 builder.Services.Configure<ProxyIdentityOptions>(builder.Configuration.GetSection(ProxyIdentityOptions.SectionName));
-builder.Services.Configure<LabelExtractionOptions>(builder.Configuration.GetSection(LabelExtractionOptions.SectionName));
+builder.Services.Configure<GeminiOptions>(o =>
+{
+    builder.Configuration.GetSection(GeminiOptions.SectionName).Bind(o);
+    // The key is an environment secret (Railway), never appsettings.
+    o.ApiKey = builder.Configuration["GEMINI_API_KEY"] ?? o.ApiKey;
+});
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(System.Text.Json.JsonNamingPolicy.CamelCase));
@@ -31,15 +36,19 @@ var connectionString = ConnectionStrings.Resolve(builder.Configuration);
 builder.Services.AddDbContext<BrewbookDbContext>(o => o.UseNpgsql(connectionString));
 builder.Services.AddHealthChecks().AddDbContextCheck<BrewbookDbContext>("postgres");
 
-var anthropicKey = builder.Configuration["ANTHROPIC_API_KEY"];
-if (string.IsNullOrWhiteSpace(anthropicKey))
+var gemini = new GeminiOptions();
+builder.Configuration.GetSection(GeminiOptions.SectionName).Bind(gemini);
+gemini.ApiKey = builder.Configuration["GEMINI_API_KEY"] ?? gemini.ApiKey;
+if (gemini.Configured)
 {
-    builder.Services.AddSingleton<ILabelExtractor, UnconfiguredLabelExtractor>();
+    builder.Services.AddHttpClient<GeminiClient>(c => c.Timeout = TimeSpan.FromSeconds(gemini.TimeoutSeconds));
+    builder.Services.AddScoped<ILabelExtractor, GeminiLabelExtractor>();
+    builder.Services.AddScoped<ISpeechTranscriber, GeminiSpeechTranscriber>();
 }
 else
 {
-    builder.Services.AddSingleton(new AnthropicClient { ApiKey = anthropicKey });
-    builder.Services.AddSingleton<ILabelExtractor, AnthropicLabelExtractor>();
+    builder.Services.AddSingleton<ILabelExtractor, UnconfiguredLabelExtractor>();
+    builder.Services.AddSingleton<ISpeechTranscriber, UnconfiguredSpeechTranscriber>();
 }
 
 var app = builder.Build();

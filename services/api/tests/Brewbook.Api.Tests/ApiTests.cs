@@ -137,6 +137,29 @@ public class ApiTests
     }
 
     [Fact]
+    public async Task Me_reports_which_integrations_are_configured()
+    {
+        using var f = new ApiFactory();
+        var me = await f.ClientFor("ada@example.com").GetFromJsonAsync<MeResponse>("/api/v1/me");
+        Assert.False(me!.Features.LabelReading);
+        Assert.False(me.Features.SpeechTranscription);
+    }
+
+    [Fact]
+    public async Task Transcribe_without_a_provider_is_unavailable()
+    {
+        using var f = new ApiFactory();
+        var c = f.ClientFor("ada@example.com");
+        using var form = new MultipartFormDataContent
+        {
+            { new ByteArrayContent([1, 2, 3]), "audio", "clip.webm" },
+            { new StringContent("{\"grind\":4.5,\"doseG\":15,\"yieldG\":250,\"tempC\":94,\"blooms\":2}"), "current" },
+        };
+        var res = await c.PostAsync("/api/v1/voice/transcribe", form);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, res.StatusCode);
+    }
+
+    [Fact]
     public async Task Label_scan_without_a_provider_is_honest_about_it()
     {
         using var f = new ApiFactory();

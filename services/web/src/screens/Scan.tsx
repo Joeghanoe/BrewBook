@@ -84,7 +84,7 @@ export const Scan = () => {
             {busy ? <ScanEye /> : <span>{stream ? "align the bag's label inside the frame" : "no camera here — the shutter opens your photos"}</span>}
           </div>
           <div className="scan-status">
-            {busy ? "READING LABEL…" : status ?? (online ? "EXTRACTION RUNS OFF-DEVICE" : "OFFLINE · SCAN WHEN BACK ONLINE")}
+            {busy ? "READING LABEL…" : status ?? (!s.me?.features.labelReading ? "LABEL READING NOT CONFIGURED · FILL IN BY HAND" : online ? "EXTRACTION RUNS OFF-DEVICE" : "OFFLINE · SCAN WHEN BACK ONLINE")}
           </div>
         </div>
       </div>

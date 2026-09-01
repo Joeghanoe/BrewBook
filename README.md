@@ -46,11 +46,43 @@ The API refuses requests without that header and must never be exposed directly.
 
 Sign out: `/oauth2/sign_out`.
 
-## Optional integrations
+## Google Cloud Console setup
+
+Two things come from Cloud Console: the OAuth client that oauth2-proxy signs people in with, and
+the Gemini API key the API uses to read bag labels and transcribe voice. Both live in one project.
+
+### 1. OAuth client for sign-in (required)
+
+1. Create or pick a project at https://console.cloud.google.com.
+2. **APIs & Services → OAuth consent screen**: External, app name "Brewbook", your email as
+   support and developer contact. No scopes beyond the defaults (`openid`, `email`, `profile`).
+   Publish the app, or add yourself as a test user while it is in Testing.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID**, type *Web application*.
+   - Authorised JavaScript origin: `https://<proxy domain>`
+   - Authorised redirect URI: `https://<proxy domain>/oauth2/callback`
+4. Copy the client ID and secret into the `proxy` service on Railway as
+   `OAUTH2_PROXY_CLIENT_ID` and `OAUTH2_PROXY_CLIENT_SECRET`. The service redeploys itself.
+
+`<proxy domain>` is the Railway domain on the `proxy` service (Settings → Networking), for
+example `proxy-production-xxxx.up.railway.app`, or a custom domain you attach there.
+
+### 2. Gemini API key for label reading and voice (optional)
+
+1. **APIs & Services → Library**: enable **Generative Language API** (`generativelanguage.googleapis.com`).
+2. **APIs & Services → Credentials → Create credentials → API key**. Restrict it:
+   - API restrictions: *Restrict key* → Generative Language API only.
+   - Application restrictions: *None* (the key is used server-side from Railway, not from a browser).
+3. Billing must be enabled on the project for anything beyond the free tier.
+4. Put the key on the `api` service on Railway as `GEMINI_API_KEY`.
+
+The model defaults to `gemini-2.5-flash` (fast, cheap, handles images and audio). Override with
+`Gemini__Model` on `api` to move to a newer Gemini release; nothing else changes.
 
 | Variable (on `api`) | Effect |
 |---|---|
-| `ANTHROPIC_API_KEY` | Label scans are read by Claude vision. Without it, the scan screen says label reading is not configured and the bag is entered by hand. |
+| `GEMINI_API_KEY` | Label scans are read into the confirm-bag ledger, and the SPEAK button records audio that the API transcribes. Without it the scan screen says label reading is not configured and voice falls back to the browser's own speech recogniser (Chrome, Safari). |
+| `Gemini__Model` | Optional model override. |
 
-Voice commands use the browser's speech recogniser (Chrome, Safari); the API turns the transcript
-into a ticket delta with a deterministic parser (`Features/Voice/VoiceCommandParser.cs`).
+The transcript is always parsed into a ticket delta by a deterministic rule set on the API
+(`Features/Voice/VoiceCommandParser.cs`), so the same words give the same change regardless of
+which recogniser produced them.

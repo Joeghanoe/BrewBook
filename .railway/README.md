@@ -47,7 +47,8 @@ header. `web` has no reason to be public either.
    | `OAUTH2_PROXY_REDIRECT_URL` | `https://<proxy domain>/oauth2/callback` |
    | `OAUTH2_PROXY_EMAIL_DOMAINS` | `*` (any Google account, each isolated) or a Workspace domain |
 
-5. Optional, on `api`: `ANTHROPIC_API_KEY` turns on label reading for the scan screen.
+5. Optional, on `api`: `GEMINI_API_KEY` turns on label reading and voice transcription (see the
+   main README for the Cloud Console steps).
 6. Redeploy `proxy` after setting variables.
 
 `DATABASE_URL` on `api` is a reference to the Postgres service and is managed by this file.
