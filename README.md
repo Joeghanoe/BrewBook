@@ -69,11 +69,17 @@ example `proxy-production-xxxx.up.railway.app`, or a custom domain you attach th
 ### 2. Gemini API key for label reading and voice (optional)
 
 1. **APIs & Services → Library**: enable **Generative Language API** (`generativelanguage.googleapis.com`).
-2. **APIs & Services → Credentials → Create credentials → API key**. Restrict it:
-   - API restrictions: *Restrict key* → Generative Language API only.
+2. **APIs & Services → Credentials → Create credentials → API key**:
+   - API restrictions: *Restrict key* → Gemini API only.
+   - Newer projects require the key to be **bound to a service account** ("Authenticate API calls
+     through a service account"). Accept the default account or pick one, then make sure that
+     service account has the **Generative Language API User** role (IAM & Admin → IAM). Without it
+     the API answers 403 and the app reports the label as unreadable.
    - Application restrictions: *None* (the key is used server-side from Railway, not from a browser).
 3. Billing must be enabled on the project for anything beyond the free tier.
-4. Put the key on the `api` service on Railway as `GEMINI_API_KEY`.
+4. Put the key on the `api` service on Railway as `GEMINI_API_KEY`. The service redeploys itself.
+5. Scan a label. If it comes back unread, the `api` deploy logs on Railway show the Gemini status
+   code and message.
 
 The model defaults to `gemini-2.5-flash` (fast, cheap, handles images and audio). Override with
 `Gemini__Model` on `api` to move to a newer Gemini release; nothing else changes.
