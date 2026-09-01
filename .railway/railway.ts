@@ -59,9 +59,10 @@ export default defineRailway(() => {
       DATABASE_URL: db.env.DATABASE_URL,
       // The API runs EF Core migrations on startup. It is the only writer of the schema.
       Database__MigrateOnStartup: "true",
-      // Optional. When set, label scans are read by Claude vision; when unset the scan screen says
-      // so and the bag is entered by hand.
-      ...preserveAll("ANTHROPIC_API_KEY"),
+      // Optional. One Gemini key turns on both label reading and server-side voice transcription;
+      // when unset the app says so and falls back (manual bag entry, browser speech recogniser).
+      // Set up per README.md → Google Cloud Console.
+      ...preserveAll("GEMINI_API_KEY"),
     },
   });
 

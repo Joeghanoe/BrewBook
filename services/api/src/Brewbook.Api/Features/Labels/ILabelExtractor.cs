@@ -4,15 +4,8 @@ namespace Brewbook.Api.Features.Labels;
 
 public interface ILabelExtractor
 {
+    bool Configured { get; }
     Task<LabelScanResponse> ExtractAsync(byte[] image, string mediaType, CancellationToken ct);
-}
-
-public sealed class LabelExtractionOptions
-{
-    public const string SectionName = "LabelExtraction";
-
-    /// <summary>Anthropic model used to read the bag. Extraction is disabled when ANTHROPIC_API_KEY is unset.</summary>
-    public string Model { get; set; } = "claude-opus-5";
 }
 
 /// <summary>Maps a roaster's declared tasting note onto a flavour-wheel category.</summary>
@@ -79,6 +72,8 @@ public static class FlavourLexicon
 /// <summary>Used when no extraction provider is configured. Says so, and hands every field to the user.</summary>
 public sealed class UnconfiguredLabelExtractor : ILabelExtractor
 {
+    public bool Configured => false;
+
     public Task<LabelScanResponse> ExtractAsync(byte[] image, string mediaType, CancellationToken ct)
     {
         var missing = new ExtractedField(null, Provenance.Missing);

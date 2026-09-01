@@ -39,9 +39,11 @@ the current user; a row that belongs to someone else is a 404, not a 403.
 
 ### Honest states
 
-Label reading and voice parsing are best-effort. When a provider is not configured, or a label
-cannot be read, the UI says so and hands the field to the user. Never render an unread field as a
-value, never apply a voice command that was not understood.
+Label reading and voice transcription go through Gemini and are best-effort. When the key is not
+configured, or a label cannot be read, the UI says so and hands the field to the user; voice falls
+back to the browser's recogniser. Never render an unread field as a value, never apply a voice
+command that was not understood. The parse from transcript to ticket delta is deterministic and
+local (`VoiceCommandParser`), whatever produced the transcript.
 
 ## Vocabulary
 
@@ -69,6 +71,7 @@ services/api        .NET 10 ASP.NET Core minimal API + EF Core + Npgsql
     Domain/           entities and BrewParams
     Data/             DbContext and append-only migrations
     Features/         one folder per capability: Beans, Brews, Voice, Labels, Users
+    Integrations/     Gemini client (the only outbound dependency)
   tests/Brewbook.Api.Tests   xunit; the real host on in-memory SQLite
 infra               per-service Dockerfiles, nginx template, local edge config
 .railway            Railway infrastructure as code (railway.ts) and its runbook
@@ -93,8 +96,11 @@ startup and is the only thing that touches the schema.
 - .NET conventions: constructor injection, the options pattern for config, ProblemDetails for
   errors, minimal APIs grouped per feature, one composition root in `Program.cs`. No repository
   wrappers or mapping layers over EF Core; the endpoint is the application service.
-- Keep the container out of domain code. `VoiceCommandParser` and `FlavourLexicon` are pure and
-  tested without a host.
+- Keep the container out of domain code. `VoiceCommandParser`, `FlavourLexicon` and
+  `GeminiLabelExtractor.Map` are pure and tested without a host or a network.
+- One outbound integration (`Integrations/Gemini`), one key, one HttpClient. Providers hide behind
+  `ILabelExtractor` / `ISpeechTranscriber`; `/api/v1/me` reports which are configured so the client
+  can pick its path without probing.
 - Validate at the edge (endpoint), keep internal types precise after that.
 - The web client keeps one store (`state/store.tsx`). Screens are components; there is no router
   because the app is a stack of screens and sheets, not URLs.

@@ -52,5 +52,11 @@ export const api = {
     request<Brew>(`/brews/${id}/rating`, json("PATCH", { rating, defects })),
   tagBrew: (id: string, tags: FlavourTag[]) => request<Brew>(`/brews/${id}/tags`, json("PUT", { tags })),
   parseVoice: (transcript: string, current: BrewParams) => request<VoiceParse>("/voice/parse", json("POST", { transcript, current })),
+  transcribeVoice: (audio: Blob, current: BrewParams) => {
+    const form = new FormData();
+    form.append("audio", audio, "clip.webm");
+    form.append("current", JSON.stringify(current));
+    return request<VoiceParse>("/voice/transcribe", { method: "POST", body: form });
+  },
   signOutUrl: "/oauth2/sign_out",
 };

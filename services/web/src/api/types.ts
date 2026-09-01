@@ -12,6 +12,7 @@ export interface Me {
   id: string;
   email: string;
   displayName: string | null;
+  features: { labelReading: boolean; speechTranscription: boolean };
 }
 
 export interface Bean {

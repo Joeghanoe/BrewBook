@@ -4,7 +4,9 @@ namespace Brewbook.Api.Contracts;
 
 // Wire shapes. Versioned by route prefix (/api/v1). Add fields; never repurpose one.
 
-public sealed record MeResponse(Guid Id, string Email, string? DisplayName);
+public sealed record FeatureFlags(bool LabelReading, bool SpeechTranscription);
+
+public sealed record MeResponse(Guid Id, string Email, string? DisplayName, FeatureFlags Features);
 
 public sealed record BrewParamsDto(decimal Grind, decimal DoseG, decimal YieldG, decimal TempC, int Blooms)
 {
