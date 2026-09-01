@@ -34,8 +34,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     public HttpClient ClientFor(string email)
     {
         var c = CreateClient();
-        c.DefaultRequestHeaders.Add("X-Auth-Request-Email", email);
-        c.DefaultRequestHeaders.Add("X-Auth-Request-User", email.Split('@')[0]);
+        c.DefaultRequestHeaders.Add("X-Forwarded-Email", email);
+        c.DefaultRequestHeaders.Add("X-Forwarded-User", email.Split('@')[0]);
         return c;
     }
 

@@ -41,7 +41,7 @@ browser ──► oauth2-proxy (Google OIDC) ──► /api/*  → api   (privat
 ```
 
 Unauthenticated requests get the Google login. Authenticated ones are forwarded with
-`X-Auth-Request-Email`; the API creates the user on first sight and scopes everything to them.
+`X-Forwarded-Email`; the API creates the user on first sight and scopes everything to them.
 The API refuses requests without that header and must never be exposed directly.
 
 Sign out: `/oauth2/sign_out`.

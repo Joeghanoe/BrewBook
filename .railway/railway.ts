@@ -66,7 +66,7 @@ export default defineRailway(() => {
     },
   });
 
-  // oauth2-proxy in front of everything. Google OIDC; forwards `X-Auth-Request-Email` upstream.
+  // oauth2-proxy in front of everything. Google OIDC; forwards `X-Forwarded-Email` upstream.
   // `/api/*` goes to the API, everything else to the SPA. Give THIS service the public domain and
   // put that domain in OAUTH2_PROXY_REDIRECT_URL (https://<domain>/oauth2/callback).
   const proxy = service("proxy", {
@@ -80,7 +80,8 @@ export default defineRailway(() => {
       OAUTH2_PROXY_HTTP_ADDRESS: "[::]:8080",
       OAUTH2_PROXY_REVERSE_PROXY: "true",
       OAUTH2_PROXY_UPSTREAMS: `http://\${{web.RAILWAY_PRIVATE_DOMAIN}}:8080/,http://\${{api.RAILWAY_PRIVATE_DOMAIN}}:8080/api/`,
-      OAUTH2_PROXY_SET_XAUTHREQUEST: "true",
+      // pass-user-headers is what reaches the API (X-Forwarded-Email etc.). set-xauthrequest
+      // would only add response headers for the browser and is deliberately off.
       OAUTH2_PROXY_PASS_USER_HEADERS: "true",
       OAUTH2_PROXY_PASS_ACCESS_TOKEN: "false",
       OAUTH2_PROXY_PREFER_EMAIL_TO_USER: "true",

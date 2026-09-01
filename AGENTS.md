@@ -32,7 +32,7 @@ floats. The ticket number is a sequence per user, never global. The database enf
 
 ### Identity comes only from the proxy
 
-The API trusts `X-Auth-Request-Email` from oauth2-proxy and nothing else. It rejects a request
+The API trusts `X-Forwarded-Email` from oauth2-proxy and nothing else. It rejects a request
 without the header; it never treats one as anonymous. The API therefore has no public domain and
 must not get one. The first request from an email provisions that user. Every query is scoped to
 the current user; a row that belongs to someone else is a 404, not a 403.
