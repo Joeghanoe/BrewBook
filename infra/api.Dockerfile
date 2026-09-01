@@ -9,6 +9,9 @@ COPY services/api/src/Brewbook.Api services/api/src/Brewbook.Api
 RUN dotnet publish services/api/src/Brewbook.Api/Brewbook.Api.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
+# Npgsql probes GSSAPI at connect time and logs a load error on every start when the
+# library is absent; the runtime image does not ship it.
+RUN apt-get update && apt-get install -y --no-install-recommends libgssapi-krb5-2 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV DOTNET_EnableDiagnostics=0 \
     ASPNETCORE_ENVIRONMENT=Production
