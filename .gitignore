@@ -1,0 +1,15 @@
+node_modules/
+dist/
+bin/
+obj/
+.env
+.env.*
+!.env.example
+*.user
+.vs/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+services/web/playwright-report/
+services/web/test-results/

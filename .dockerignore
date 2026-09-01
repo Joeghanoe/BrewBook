@@ -1,0 +1,17 @@
+# Build context is the repo root for infra/api.Dockerfile and infra/web.Dockerfile.
+.git/
+.github/
+.railway/
+docs/
+*.md
+.env
+.env.*
+!.env.example
+**/node_modules/
+**/dist/
+**/bin/
+**/obj/
+services/api/tests/
+services/web/playwright-report/
+services/web/test-results/
+docker-compose.yml
