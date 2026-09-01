@@ -81,7 +81,7 @@ example `proxy-production-xxxx.up.railway.app`, or a custom domain you attach th
 5. Scan a label. If it comes back unread, the `api` deploy logs on Railway show the Gemini status
    code and message.
 
-The model defaults to `gemini-2.5-flash` (fast, cheap, handles images and audio). Override with
+The model defaults to `gemini-3.6-flash` (fast, cheap, handles images and audio). Override with
 `Gemini__Model` on `api` to move to a newer Gemini release; nothing else changes.
 
 | Variable (on `api`) | Effect |
