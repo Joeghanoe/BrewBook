@@ -9,6 +9,14 @@ server {
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;
 
+    # The API is reached only through oauth2-proxy, which routes /api/ to the api service before
+    # anything hits this server. A request arriving here means someone opened web directly;
+    # answer plainly instead of serving index.html as if it were JSON.
+    location /api/ {
+        default_type application/json;
+        return 404 '{"title":"Not the app entry point","detail":"Open Brewbook through the proxy domain, not the web service."}';
+    }
+
     # Hashed assets are immutable; the document is not.
     location /assets/ {
         add_header Cache-Control "public, max-age=31536000, immutable";

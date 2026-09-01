@@ -12,8 +12,8 @@ export default defineConfig({
         target: process.env.API_ORIGIN ?? "http://localhost:8080",
         changeOrigin: true,
         headers: {
-          "X-Auth-Request-Email": process.env.DEV_USER_EMAIL ?? "dev@brewbook.local",
-          "X-Auth-Request-User": "dev",
+          "X-Forwarded-Email": process.env.DEV_USER_EMAIL ?? "dev@brewbook.local",
+          "X-Forwarded-User": "dev",
         },
       },
     },

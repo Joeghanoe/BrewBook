@@ -27,7 +27,7 @@ browser ──HTTPS──► proxy (oauth2-proxy, Google)  ── public domain
                                      api ──► postgres
 ```
 
-Only `proxy` has a public domain. `api` trusts `X-Auth-Request-Email` from the proxy and rejects
+Only `proxy` has a public domain. `api` trusts `X-Forwarded-Email` from the proxy and rejects
 requests without it, so it must never get a public domain: give it one and anyone can forge the
 header. `web` has no reason to be public either.
 
