@@ -63,7 +63,7 @@ export const Home = () => {
         <div className="perforation" />
         <button className="brew-btn" disabled={!bean} onClick={() => { s.dismissRatePrompt(); s.setSheet(null); s.setScreen("timer"); }}>▶ &nbsp;BREW</button>
       </div>
-      <div className="hint" style={{ marginTop: 11 }}>{bean ? "tap any value to adjust · hold the mic and speak a change" : "add a bag from the library before the first brew"}</div>
+      <div className="hint" style={{ marginTop: 11 }}>{bean ? "tap any value to adjust · tap SPEAK and say a change" : "add a bag from the library before the first brew"}</div>
       <div style={{ flex: 1 }} />
       <VoiceCard />
       <div className="home-bar">
@@ -120,7 +120,7 @@ const VoiceCard = () => {
   const v = useVoice();
   if (v.phase === "idle") return null;
   const label = v.phase === "recording" ? "LISTENING" : v.phase === "processing" ? "TRANSCRIBING…" : v.phase === "done" ? "APPLIED" : "NOT APPLIED";
-  const sub = v.phase === "recording" ? "release to submit" : v.phase === "processing" ? "sending audio for parsing" : v.sub;
+  const sub = v.phase === "recording" ? "tap STOP to submit" : v.phase === "processing" ? "sending audio for parsing" : v.sub;
   return (
     <div className="voice">
       <div className="voice-dot-wrap">
@@ -152,9 +152,8 @@ const SpeakButton = () => {
     hide.current = window.setTimeout(() => setVoice({ phase: "idle" }), 3000);
   };
 
-  const down = async (e: React.PointerEvent) => {
-    e.preventDefault();
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  // Tap to start, tap again to stop and submit.
+  const start = async () => {
     window.clearTimeout(hide.current);
     if (serverSide) {
       mode.current = "server";
@@ -173,15 +172,15 @@ const SpeakButton = () => {
     else finish({ phase: "failed", sub: r.transcript ? `"${r.transcript}" — ${r.summary}` : r.summary });
   };
 
-  const up = async () => {
-    if (voiceCtx.state.phase !== "recording" || !mode.current) return;
+  const stop = async () => {
+    if (!mode.current) return;
     const m = mode.current;
     mode.current = null;
     setVoice({ phase: "processing" });
     try {
       if (m === "server") {
         const clip = await recorder.stop();
-        if (!clip) { finish({ phase: "failed", sub: "nothing was heard" }); return; }
+        if (!clip) { finish({ phase: "failed", sub: "nothing was recorded" }); return; }
         apply(await api.transcribeVoice(clip, paramsRef.current));
       } else {
         const transcript = await speech.stop();
@@ -193,9 +192,18 @@ const SpeakButton = () => {
     }
   };
 
+  const v = useVoice();
+  const recordingNow = v.phase === "recording";
+
+  const toggle = () => {
+    const phase = voiceCtx.state.phase;
+    if (phase === "recording") void stop();
+    else if (phase !== "processing") void start();
+  };
+
   return (
-    <button className="outline" style={{ touchAction: "none" }} onPointerDown={down} onPointerUp={up} onPointerCancel={up} onContextMenu={(e) => e.preventDefault()}>
-      <MicIcon /> SPEAK
+    <button className={"outline" + (recordingNow ? " live" : "")} onClick={toggle} aria-pressed={recordingNow}>
+      <MicIcon /> {recordingNow ? "STOP" : "SPEAK"}
     </button>
   );
 };

@@ -80,6 +80,7 @@ svg { display: block; }
 .cta.panel > span { font-size: 14px; letter-spacing: 6px; }
 .outline { height: 56px; border: 1px solid var(--copper-55); display: flex; align-items: center; justify-content: center; gap: 10px; font: 600 13px var(--grotesk); letter-spacing: 4px; color: var(--copper-light); }
 .outline:hover, .sqbtn:hover, .stepper:hover { background: rgba(194, 144, 94, 0.12); }
+.outline.live { background: rgba(194, 144, 94, 0.18); border-color: var(--copper); }
 
 /* Home */
 .home-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 26px 0; }
