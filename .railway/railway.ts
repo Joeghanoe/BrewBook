@@ -84,7 +84,8 @@ export default defineRailway(() => {
       // would only add response headers for the browser and is deliberately off.
       OAUTH2_PROXY_PASS_USER_HEADERS: "true",
       OAUTH2_PROXY_PASS_ACCESS_TOKEN: "false",
-      OAUTH2_PROXY_PREFER_EMAIL_TO_USER: "true",
+      // Never set prefer-email-to-user here: it moves the email into X-Forwarded-User and drops
+      // X-Forwarded-Email, which is the header the API keys identity on (observed 2026-09-01).
       OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true",
       OAUTH2_PROXY_COOKIE_SECURE: "true",
       OAUTH2_PROXY_COOKIE_SAMESITE: "lax",
