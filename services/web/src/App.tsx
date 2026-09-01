@@ -1,5 +1,6 @@
 import { Toast } from "./components/Chrome";
 import { BeanDetail } from "./screens/BeanDetail";
+import { Guide } from "./screens/Guide";
 import { Home } from "./screens/Home";
 import { Library } from "./screens/Library";
 import { Scan } from "./screens/Scan";
@@ -31,6 +32,7 @@ export const App = () => {
             {s.screen === "scan" && <Scan />}
             {s.screen === "scanform" && <ScanForm />}
             {s.wheelOpen && <WheelLayer />}
+            {s.guideOpen && <Guide />}
           </>
         )}
         <Toast />

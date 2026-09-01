@@ -282,6 +282,37 @@ svg { display: block; }
 .tagline { display: flex; align-items: center; gap: 10px; margin-top: 12px; font: 700 10px var(--courier); letter-spacing: 4px; color: rgba(194, 144, 94, 0.9); animation: bb-fadeup 1s 0.55s both; }
 .enter { position: absolute; bottom: calc(56px + env(safe-area-inset-bottom)); font: 400 12px var(--grotesk); letter-spacing: 2px; color: var(--text-45); animation: bb-glow 2.4s ease-in-out infinite; }
 
+/* Guide: covers the screen underneath; first sign-in, or GUIDE from the library. */
+.guide { z-index: 65; background: var(--bg); }
+.guide-card { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px 26px 0; touch-action: pan-y; animation: bb-fadeup 0.3s both; cursor: pointer; min-height: 0; }
+.guide-art { flex: 0 1 360px; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-height: 0; }
+.guide-kicker { margin-top: 22px; font: 700 10px var(--courier); letter-spacing: 3px; color: rgba(194, 144, 94, 0.9); }
+.guide-title { margin-top: 8px; font: 700 22px var(--grotesk); letter-spacing: 2px; color: var(--text); text-align: center; }
+.guide-text { margin-top: 10px; font: 400 14px var(--grotesk); line-height: 1.5; color: var(--text-75); text-align: center; max-width: 320px; }
+.guide-dots { display: flex; justify-content: center; gap: 10px; padding: 18px 0 14px; }
+.guide-dots > div { width: 8px; height: 8px; background: var(--copper-30); }
+.guide-dots > div.on { background: var(--copper); }
+.guide-foot { padding: 0 22px 14px; }
+.guide-foot .outline { width: 100%; }
+.guide-ticket { margin: 0; padding: 14px 18px 0; width: 100%; max-width: 300px; }
+.guide-dial { width: 150px; height: 150px; border-radius: 50%; border: 1.5px solid var(--copper-55); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.guide-dial .time { font: 600 40px var(--grotesk); color: var(--text); font-variant-numeric: tabular-nums; }
+.guide-dial .sub { font: 400 12px var(--grotesk); color: var(--text-55); margin-top: 2px; }
+.guide-markers { margin-top: 0; padding: 0; }
+.guide-keys { display: flex; flex-direction: column; gap: 6px; font: 400 12px var(--grotesk); color: var(--text-75); }
+.guide-keys > div { display: flex; align-items: center; gap: 10px; }
+.guide-keys span { width: 44px; flex: none; display: flex; align-items: center; font: 700 10px var(--courier); letter-spacing: 2px; color: var(--copper-light); }
+.guide-stars { display: flex; gap: 8px; }
+.guide-stars > div { width: 44px; height: 44px; border: 1px solid rgba(194, 144, 94, 0.5); display: flex; align-items: center; justify-content: center; font-size: 19px; color: rgba(194, 144, 94, 0.4); }
+.guide-stars > div.on { color: var(--copper-light); background: rgba(194, 144, 94, 0.16); }
+.guide-defects { margin-top: 0; justify-content: center; }
+.guide-leaves { display: flex; align-items: flex-start; gap: 12px; margin-top: 6px; }
+.guide-leaves > svg { margin-top: 10px; }
+.guide-leaves .key { margin-top: 6px; font: 700 9px var(--courier); letter-spacing: 2px; color: var(--text-55); text-align: center; }
+.guide-finder { position: relative; width: 190px; height: 150px; border: 1px solid var(--copper-30); background: radial-gradient(ellipse at 50% 45%, rgba(194, 144, 94, 0.12), rgba(0, 0, 0, 0.5)); display: flex; align-items: center; justify-content: center; }
+.guide-finder .target { width: 96px; height: 116px; }
+.guide-switch { text-align: center; }
+
 /* Loading / error */
 .notice { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 40px; text-align: center; }
 .notice .t { font: 700 11px var(--courier); letter-spacing: 3px; color: var(--copper-light); }
