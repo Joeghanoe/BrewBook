@@ -51,39 +51,45 @@ export const WheelLayer = () => {
       <div className="layer wheel">
         <Grabber />
         <div className="layer-title">
-          <button className="sqbtn" onClick={done} aria-label="Close">✕</button>
+          <button className="sqbtn" onClick={zoom ? () => setZoom(null) : done} aria-label={zoom ? "Back" : "Close"}>{zoom ? "←" : "✕"}</button>
           <div><div className="t">TAG FLAVOURS</div><div className="s">{subtitle}</div></div>
         </div>
-        <div className="rule" style={{ margin: "14px 22px 0" }}><span>ALL FLAVOURS</span><div className="line" /><span className="dim">{total} TAGGED</span></div>
-        <div style={{ display: "flex", justifyContent: "center", paddingTop: 8 }}>
-          <svg width="330" height="330" viewBox="-6 -6 352 352" fill="none" style={{ animation: "bb-pop .5s both" }}>
-            <g strokeWidth="1.2">
-              {WHEEL.map((c, i) => {
-                const a0 = -90 + i * STEP, a1 = a0 + STEP;
-                const cnt = byCat.get(c.name);
-                return <path key={c.name} className="wedge" d={annular(CX, CY, RO, RI, a0, a1)} fill={fillFor(cnt)} stroke={strokeFor(cnt)} onClick={() => setZoom(c)} />;
-              })}
-            </g>
-            <g fontFamily="Space Grotesk" fontSize="11" fontWeight="600" letterSpacing="1.5" fill="#e9d6ae" textAnchor="middle" pointerEvents="none">
-              {WHEEL.map((c, i) => { const [x, y] = polar(CX, CY, (RO + RI) / 2, -90 + (i + 0.5) * STEP); return <text key={c.name} x={x.toFixed(1)} y={(y + 4).toFixed(1)}>{c.name}</text>; })}
-            </g>
-            {WHEEL.map((c, i) => {
-              const cnt = byCat.get(c.name); if (!cnt || cnt.pos + cnt.neg === 0) return null;
-              const [x, y] = polar(CX, CY, RO - 8, -90 + i * STEP + 6);
-              const rust = cnt.pos === 0;
-              return (
-                <g key={c.name} pointerEvents="none" style={{ animation: "bb-pop .35s both", transformOrigin: `${x}px ${y}px` }}>
-                  <circle cx={x} cy={y} r="10" fill={rust ? "#a1553f" : "#c2905e"} />
-                  <text x={x} y={y + 4} fontFamily="Courier Prime" fontSize="11" fontWeight="700" fill={rust ? "#e9d6ae" : "#1c1a21"} textAnchor="middle">{cnt.pos + cnt.neg}</text>
+        {zoom ? (
+          <ZoomView category={zoom} onBack={() => setZoom(null)} />
+        ) : (
+          <>
+            <div className="rule" style={{ margin: "14px 22px 0" }}><span>ALL FLAVOURS</span><div className="line" /><span className="dim">{total} TAGGED</span></div>
+            <div style={{ display: "flex", justifyContent: "center", paddingTop: 8 }}>
+              <svg width="330" height="330" viewBox="-6 -6 352 352" fill="none" style={{ animation: "bb-pop .5s both" }}>
+                <g strokeWidth="1.2">
+                  {WHEEL.map((c, i) => {
+                    const a0 = -90 + i * STEP, a1 = a0 + STEP;
+                    const cnt = byCat.get(c.name);
+                    return <path key={c.name} className="wedge" d={annular(CX, CY, RO, RI, a0, a1)} fill={fillFor(cnt)} stroke={strokeFor(cnt)} onClick={() => setZoom(c)} />;
+                  })}
                 </g>
-              );
-            })}
-            <g stroke="#c2905e" strokeWidth="1.3" pointerEvents="none" style={{ animation: "bb-blink 4.4s ease-in-out infinite", transformOrigin: "170px 166px" }}>
-              <path d="M148 166 Q170 146 192 166 Q170 186 148 166 Z" /><ellipse cx="170" cy="166" rx="6.5" ry="7" />
-            </g>
-          </svg>
-        </div>
-        <div className="hint" style={{ marginTop: 6, color: "rgba(233,214,174,.45)" }}>tap a wedge to open it</div>
+                <g fontFamily="Space Grotesk" fontSize="11" fontWeight="600" letterSpacing="1.5" fill="#e9d6ae" textAnchor="middle" pointerEvents="none">
+                  {WHEEL.map((c, i) => { const [x, y] = polar(CX, CY, (RO + RI) / 2, -90 + (i + 0.5) * STEP); return <text key={c.name} x={x.toFixed(1)} y={(y + 4).toFixed(1)}>{c.name}</text>; })}
+                </g>
+                {WHEEL.map((c, i) => {
+                  const cnt = byCat.get(c.name); if (!cnt || cnt.pos + cnt.neg === 0) return null;
+                  const [x, y] = polar(CX, CY, RO - 8, -90 + i * STEP + 6);
+                  const rust = cnt.pos === 0;
+                  return (
+                    <g key={c.name} pointerEvents="none" style={{ animation: "bb-pop .35s both", transformOrigin: `${x}px ${y}px` }}>
+                      <circle cx={x} cy={y} r="10" fill={rust ? "#a1553f" : "#c2905e"} />
+                      <text x={x} y={y + 4} fontFamily="Courier Prime" fontSize="11" fontWeight="700" fill={rust ? "#e9d6ae" : "#1c1a21"} textAnchor="middle">{cnt.pos + cnt.neg}</text>
+                    </g>
+                  );
+                })}
+                <g stroke="#c2905e" strokeWidth="1.3" pointerEvents="none" style={{ animation: "bb-blink 4.4s ease-in-out infinite", transformOrigin: "170px 166px" }}>
+                  <path d="M148 166 Q170 146 192 166 Q170 186 148 166 Z" /><ellipse cx="170" cy="166" rx="6.5" ry="7" />
+                </g>
+              </svg>
+            </div>
+            <div className="hint" style={{ marginTop: 6, color: "rgba(233,214,174,.45)" }}>tap a wedge to open it</div>
+          </>
+        )}
         <div style={{ flex: 1 }} />
         <div className="chips" style={{ padding: "0 22px 14px", minHeight: 44 }}>
           {s.tags.map((t) => (
@@ -95,61 +101,53 @@ export const WheelLayer = () => {
         <div style={{ padding: "0 22px 14px" }}><button className="cta" onClick={done}><span>DONE</span></button></div>
         <div className="homebar"><div /></div>
       </div>
-      {zoom && <ZoomLayer category={zoom} onBack={() => setZoom(null)} onDone={done} />}
     </>
   );
 };
 
-const ZoomLayer = ({ category, onBack, onDone }: { category: FlavourCategory; onBack: () => void; onDone: () => void }) => {
+const ZoomView = ({ category, onBack }: { category: FlavourCategory; onBack: () => void }) => {
   const { byGroup, total } = useCounts();
   const groups = category.groups;
-  const CX = 195, CY = 320, RO = 150, RI = 70, STEP = 180 / groups.length;
+  const CX = 195, CY = 175, RO = 118, RI = 56, STEP = 180 / groups.length;
   return (
     <>
-      <div className="layer-backdrop" style={{ zIndex: 62, background: "rgba(10,9,12,.45)" }} onClick={onBack} />
-      <div className="layer zoom">
-        <Grabber />
-        <div className="crumbs">
-          <button onClick={onBack}>← ALL FLAVOURS</button><span className="slash">/</span><span className="cur">{category.name}</span>
-          <div className="line" /><span className="dim">{total} TAGGED</span>
-        </div>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <svg width="390" height="290" viewBox="0 -10 390 340" fill="none" style={{ maxWidth: "100%" }}>
-            <g stroke={COPPER_STROKE} strokeWidth="1.2">
-              {groups.map((g, i) => {
-                const a0 = 180 + i * STEP, a1 = a0 + STEP;
-                return <path key={g.name} d={annular(CX, CY, RO, RI, a0, a1)} fill={fillFor(byGroup.get(category.name + "/" + g.name), "rgba(194,144,94,.08)", "rgba(194,144,94,.32)")} />;
-              })}
-            </g>
-            <g fontFamily="Space Grotesk" fontSize="11" fontWeight="600" letterSpacing="1.5" fill="#e9d6ae" textAnchor="middle" pointerEvents="none">
-              {groups.map((g, i) => { const [x, y] = polar(CX, CY, (RO + RI) / 2, 180 + (i + 0.5) * STEP); return <text key={g.name} x={x.toFixed(1)} y={(y + 4).toFixed(1)}>{g.name}</text>; })}
-            </g>
-            {groups.map((g, i) => {
-              const cnt = byGroup.get(category.name + "/" + g.name); if (!cnt || cnt.pos + cnt.neg === 0) return null;
-              const [x, y] = polar(CX, CY, RO - 8, 180 + i * STEP + 8);
-              return (
-                <g key={g.name} pointerEvents="none" style={{ animation: "bb-pop .35s both", transformOrigin: `${x}px ${y}px` }}>
-                  <circle cx={x} cy={y} r="10" fill="#c2905e" />
-                  <text x={x} y={y + 4} fontFamily="Courier Prime" fontSize="11" fontWeight="700" fill="#1c1a21" textAnchor="middle">{cnt.pos + cnt.neg}</text>
-                </g>
-              );
-            })}
-            <text x={CX} y={CY - 15} fontFamily="Space Grotesk" fontSize="15" fontWeight="700" letterSpacing="4" fill="#d8a86f" textAnchor="middle">{category.name}</text>
-          </svg>
-        </div>
-        <div className="leaves">
-          {groups.map((g, i) => (
-            <div key={g.name}>
-              <div className="rule" style={{ marginTop: i ? 18 : 0 }}><span>{g.name}</span><div className="line" /></div>
-              <div className="chips" style={{ marginTop: 11 }}>{g.leaves.map((l) => <Leaf key={l} name={l} />)}</div>
-            </div>
-          ))}
-        </div>
-        <div className="hint" style={{ marginTop: 12, color: "rgba(233,214,174,.45)" }}>tap to tag · long-press to mark a dislike</div>
-        <div style={{ flex: 1 }} />
-        <div style={{ padding: "0 22px 14px" }}><button className="cta" onClick={onDone}><span>DONE</span></button></div>
-        <div className="homebar"><div /></div>
+      <div className="crumbs">
+        <button onClick={onBack}>← ALL FLAVOURS</button><span className="slash">/</span><span className="cur">{category.name}</span>
+        <div className="line" /><span className="dim">{total} TAGGED</span>
       </div>
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <svg width="390" height="150" viewBox="0 40 390 150" fill="none" style={{ maxWidth: "100%", animation: "bb-pop .4s both" }}>
+          <g stroke={COPPER_STROKE} strokeWidth="1.2">
+            {groups.map((g, i) => {
+              const a0 = 180 + i * STEP, a1 = a0 + STEP;
+              return <path key={g.name} d={annular(CX, CY, RO, RI, a0, a1)} fill={fillFor(byGroup.get(category.name + "/" + g.name), "rgba(194,144,94,.08)", "rgba(194,144,94,.32)")} />;
+            })}
+          </g>
+          <g fontFamily="Space Grotesk" fontSize="10" fontWeight="600" letterSpacing="1.5" fill="#e9d6ae" textAnchor="middle" pointerEvents="none">
+            {groups.map((g, i) => { const [x, y] = polar(CX, CY, (RO + RI) / 2, 180 + (i + 0.5) * STEP); return <text key={g.name} x={x.toFixed(1)} y={(y + 4).toFixed(1)}>{g.name}</text>; })}
+          </g>
+          {groups.map((g, i) => {
+            const cnt = byGroup.get(category.name + "/" + g.name); if (!cnt || cnt.pos + cnt.neg === 0) return null;
+            const [x, y] = polar(CX, CY, RO - 8, 180 + i * STEP + 8);
+            return (
+              <g key={g.name} pointerEvents="none" style={{ animation: "bb-pop .35s both", transformOrigin: `${x}px ${y}px` }}>
+                <circle cx={x} cy={y} r="9" fill="#c2905e" />
+                <text x={x} y={y + 3.5} fontFamily="Courier Prime" fontSize="10" fontWeight="700" fill="#1c1a21" textAnchor="middle">{cnt.pos + cnt.neg}</text>
+              </g>
+            );
+          })}
+          <text x={CX} y={CY - 12} fontFamily="Space Grotesk" fontSize="13" fontWeight="700" letterSpacing="4" fill="#d8a86f" textAnchor="middle">{category.name}</text>
+        </svg>
+      </div>
+      <div className="leaves">
+        {groups.map((g, i) => (
+          <div key={g.name}>
+            <div className="rule" style={{ marginTop: i ? 12 : 0 }}><span>{g.name}</span><div className="line" /></div>
+            <div className="chips compact" style={{ marginTop: 8 }}>{g.leaves.map((l) => <Leaf key={l} name={l} />)}</div>
+          </div>
+        ))}
+      </div>
+      <div className="hint" style={{ marginTop: 8, color: "rgba(233,214,174,.45)" }}>tap to tag · long-press to mark a dislike</div>
     </>
   );
 };

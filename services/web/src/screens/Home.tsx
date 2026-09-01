@@ -1,10 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { api } from "../api/client";
-import type { VoiceParse } from "../api/types";
+import { useState } from "react";
 import { Grabber, HomeBar, Rule, StatusBar, Star } from "../components/Chrome";
-import { EyeGlyph, MicIcon, WheelIcon } from "../components/Icons";
-import { useRecorder } from "../hooks/useRecorder";
-import { useSpeech } from "../hooks/useSpeech";
+import { EyeGlyph, WheelIcon } from "../components/Icons";
 import { changedKeys, daysOffRoast, fmtTime, lastLabel, PARAMS, round1, sameAsLabel } from "../lib/format";
 import { useStore } from "../state/store";
 
@@ -63,13 +59,11 @@ export const Home = () => {
         <div className="perforation" />
         <button className="brew-btn" disabled={!bean} onClick={() => { s.dismissRatePrompt(); s.setSheet(null); s.setScreen("timer"); }}>▶ &nbsp;BREW</button>
       </div>
-      <div className="hint" style={{ marginTop: 11 }}>{bean ? "tap any value to adjust · tap SPEAK and say a change" : "add a bag from the library before the first brew"}</div>
+      <div className="hint" style={{ marginTop: 11 }}>{bean ? "tap any value to adjust · speak changes while you brew" : "add a bag from the library before the first brew"}</div>
       <div style={{ flex: 1 }} />
-      <VoiceCard />
       <div className="home-bar">
         <button className="outline" onClick={() => s.setSheet("adjust")}>ADJUST</button>
         <button className="wheel-btn" onClick={() => s.openWheel()} aria-label="Tag flavours"><WheelIcon /></button>
-        <SpeakButton />
       </div>
       <HomeBar />
       {s.sheet === "adjust" && <AdjustSheet />}
@@ -104,107 +98,6 @@ const RateCard = () => {
         <button className="tagcta" onClick={() => s.openWheel(brew)}>TAG FLAVOURS →</button>
       </div>
     </div>
-  );
-};
-
-type VoiceState = { phase: "idle" } | { phase: "recording" } | { phase: "processing" } | { phase: "done"; sub: string } | { phase: "failed"; sub: string };
-const voiceCtx = { state: { phase: "idle" } as VoiceState, listeners: new Set<() => void>() };
-const setVoice = (v: VoiceState) => { voiceCtx.state = v; voiceCtx.listeners.forEach((l) => l()); };
-const useVoice = () => {
-  const [, tick] = useState(0);
-  useEffect(() => { const l = () => tick((n) => n + 1); voiceCtx.listeners.add(l); return () => { voiceCtx.listeners.delete(l); }; }, []);
-  return voiceCtx.state;
-};
-
-const VoiceCard = () => {
-  const v = useVoice();
-  if (v.phase === "idle") return null;
-  const label = v.phase === "recording" ? "LISTENING" : v.phase === "processing" ? "TRANSCRIBING…" : v.phase === "done" ? "APPLIED" : "NOT APPLIED";
-  const sub = v.phase === "recording" ? "tap STOP to submit" : v.phase === "processing" ? "sending audio for parsing" : v.sub;
-  return (
-    <div className="voice">
-      <div className="voice-dot-wrap">
-        {v.phase === "recording" && <div className="voice-ring" />}
-        <div className={"voice-dot" + (v.phase === "done" ? " done" : v.phase === "failed" ? " fail" : "")}><MicIcon stroke="#1c1a21" size={13} stand={false} /></div>
-      </div>
-      <div>
-        <div className="voice-label">{label}</div>
-        <div className="voice-sub">{sub}</div>
-      </div>
-    </div>
-  );
-};
-
-const SpeakButton = () => {
-  const s = useStore();
-  const speech = useSpeech();
-  const recorder = useRecorder();
-  const hide = useRef(0);
-  const paramsRef = useRef(s.params);
-  paramsRef.current = s.params;
-  // Server-side transcription (Gemini) when the deployment has it; the browser's own recogniser otherwise.
-  const serverSide = !!s.me?.features.speechTranscription && recorder.supported;
-  const mode = useRef<"server" | "browser" | null>(null);
-
-  const finish = (v: VoiceState) => {
-    setVoice(v);
-    window.clearTimeout(hide.current);
-    hide.current = window.setTimeout(() => setVoice({ phase: "idle" }), 3000);
-  };
-
-  // Tap to start, tap again to stop and submit.
-  const start = async () => {
-    window.clearTimeout(hide.current);
-    if (serverSide) {
-      mode.current = "server";
-      setVoice({ phase: "recording" });
-      if (!(await recorder.start())) { mode.current = null; finish({ phase: "failed", sub: "the microphone could not be opened" }); }
-      return;
-    }
-    if (!speech.supported) { finish({ phase: "failed", sub: "voice input isn't available in this browser" }); return; }
-    if (!speech.start()) { finish({ phase: "failed", sub: "the microphone could not be opened" }); return; }
-    mode.current = "browser";
-    setVoice({ phase: "recording" });
-  };
-
-  const apply = (r: VoiceParse) => {
-    if (r.applied) { s.setParams(r.params); finish({ phase: "done", sub: `"${r.transcript}" — ${r.summary}` }); }
-    else finish({ phase: "failed", sub: r.transcript ? `"${r.transcript}" — ${r.summary}` : r.summary });
-  };
-
-  const stop = async () => {
-    if (!mode.current) return;
-    const m = mode.current;
-    mode.current = null;
-    setVoice({ phase: "processing" });
-    try {
-      if (m === "server") {
-        const clip = await recorder.stop();
-        if (!clip) { finish({ phase: "failed", sub: "nothing was recorded" }); return; }
-        apply(await api.transcribeVoice(clip, paramsRef.current));
-      } else {
-        const transcript = await speech.stop();
-        if (!transcript) { finish({ phase: "failed", sub: "nothing was heard" }); return; }
-        apply(await api.parseVoice(transcript, paramsRef.current));
-      }
-    } catch {
-      finish({ phase: "failed", sub: "the parser could not be reached" });
-    }
-  };
-
-  const v = useVoice();
-  const recordingNow = v.phase === "recording";
-
-  const toggle = () => {
-    const phase = voiceCtx.state.phase;
-    if (phase === "recording") void stop();
-    else if (phase !== "processing") void start();
-  };
-
-  return (
-    <button className={"outline" + (recordingNow ? " live" : "")} onClick={toggle} aria-pressed={recordingNow}>
-      <MicIcon /> {recordingNow ? "STOP" : "SPEAK"}
-    </button>
   );
 };
 
