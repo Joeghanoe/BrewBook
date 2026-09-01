@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { api } from "../api/client";
+import type { VoiceParse } from "../api/types";
 import { StatusBar } from "../components/Chrome";
+import { MicIcon } from "../components/Icons";
+import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { LONG_PRESS_MS } from "../hooks/useLongPress";
-import { fmtTime } from "../lib/format";
+import { useRecorder } from "../hooks/useRecorder";
+import { fmtTime, PARAMS } from "../lib/format";
 import { useStore } from "../state/store";
 
 const TARGET_MS = 150_000;
@@ -60,7 +65,96 @@ export const Timer = () => {
           {markers.map((m, i) => <div key={i} className="marker"><span>✦</span> POUR {fmtTime(m)}</div>)}
         </div>
       </div>
+      <VoiceStrip running={running} />
       <div className="timer-hint">{running ? "tap to stop & log · hold to mark a pour" : "tap anywhere to start"}</div>
+    </div>
+  );
+};
+
+type Note = { kind: "heard" | "applied" | "ignored" | "failed"; text: string };
+
+/**
+ * Speak changes while the brew runs. Live text comes from the browser's recogniser; each finished
+ * phrase is parsed by the API and applied to the ticket, which is shown as a strip so the change is
+ * visible at once. Without a recogniser the clip is transcribed by the server when the mic stops.
+ */
+const VoiceStrip = ({ running }: { running: boolean }) => {
+  const s = useStore();
+  const paramsRef = useRef(s.params);
+  paramsRef.current = s.params;
+  const [note, setNote] = useState<Note | null>(null);
+  const [busy, setBusy] = useState(false);
+  const queue = useRef(Promise.resolve());
+
+  const apply = (r: VoiceParse) => {
+    if (r.applied) { s.setParams(r.params); setNote({ kind: "applied", text: `"${r.transcript}" — ${r.summary}` }); }
+    else setNote({ kind: "ignored", text: r.transcript ? `"${r.transcript}" — not a ticket change` : r.summary });
+  };
+
+  // Phrases are parsed one after another so two quick sentences do not race on the same baseline.
+  const onPhrase = (text: string) => {
+    setNote({ kind: "heard", text });
+    queue.current = queue.current.then(async () => {
+      try { apply(await api.parseVoice(text, paramsRef.current)); }
+      catch { setNote({ kind: "failed", text: "the parser could not be reached" }); }
+    });
+  };
+
+  const live = useLiveSpeech(onPhrase);
+  const recorder = useRecorder();
+  const serverOnly = !live.supported && recorder.supported && !!s.me?.features?.speechTranscription;
+  const available = live.supported || serverOnly;
+  const on = live.listening || recorder.recording;
+
+  const toggle = async () => {
+    if (busy) return;
+    if (on) {
+      if (live.listening) { live.stop(); return; }
+      setBusy(true);
+      const clip = await recorder.stop();
+      if (!clip) { setNote({ kind: "ignored", text: "nothing was recorded" }); setBusy(false); return; }
+      try { apply(await api.transcribeVoice(clip, paramsRef.current)); }
+      catch { setNote({ kind: "failed", text: "the parser could not be reached" }); }
+      setBusy(false);
+      return;
+    }
+    setNote(null);
+    const ok = live.supported ? live.start() : await recorder.start();
+    if (!ok) setNote({ kind: "failed", text: "the microphone could not be opened" });
+  };
+
+  // Stopping the brew ends listening; the ticket already carries what was said.
+  useEffect(() => { if (!running && live.listening) live.stop(); }, [running, live]);
+
+  const stopBubble = (e: React.SyntheticEvent) => e.stopPropagation();
+  const line = live.interim ? { kind: "heard" as const, text: live.interim + "…" } : note;
+
+  return (
+    <div className="voice-strip" onPointerDown={stopBubble} onPointerUp={stopBubble} onClick={stopBubble}>
+      <div className="ticket-strip">
+        {PARAMS.map((c) => {
+          const v = s.params[c.key], b = s.base[c.key], changed = v !== b;
+          return (
+            <div key={c.key} className={"ts-cell" + (changed ? " changed" : "")}>
+              <div className="ts-label">{c.label}</div>
+              <div className="ts-value">{c.fmt(v)}{c.cellUnit && <span>{c.cellUnit}</span>}</div>
+              <div className="ts-mark" />
+            </div>
+          );
+        })}
+      </div>
+      <div className="voice-row">
+        <button className={"mic-btn" + (on ? " live" : "")} onClick={toggle} disabled={!available || busy} aria-pressed={on} aria-label={on ? "Stop listening" : "Speak a change"}>
+          {on && <div className="voice-ring" />}
+          <MicIcon stroke={on ? "#1c1a21" : "#d8a86f"} size={14} stand={false} />
+        </button>
+        <div className="voice-text">
+          {!available && <div className="voice-sub">voice input isn't available in this browser</div>}
+          {available && !on && !line && <div className="voice-sub">{busy ? "sending audio for parsing" : "tap the mic and say a change while you pour"}</div>}
+          {available && on && !line && <div className="voice-sub">{live.supported ? "listening…" : "recording — tap again to send"}</div>}
+          {line && <div className={"voice-line " + line.kind}>{line.text}</div>}
+        </div>
+      </div>
     </div>
   );
 };

@@ -55,6 +55,13 @@ header. `web` has no reason to be public either.
 The API runs its EF Core migrations on start (`Database__MigrateOnStartup=true`); nothing else
 touches the schema.
 
+## Header contract with the API
+
+oauth2-proxy forwards `X-Forwarded-Email`, `X-Forwarded-User` and `X-Forwarded-Preferred-Username`
+to upstreams (`pass-user-headers`). The API keys identity on `X-Forwarded-Email`. Two flags break
+that silently: `prefer-email-to-user` (moves the email into `-User` and drops `-Email`) and
+`set-xauthrequest` (only adds `X-Auth-Request-*` to the browser response). Keep both off.
+
 ## Changing things
 
 - New environment variable → add it here (`preserve()` for secrets, a literal for config), set it

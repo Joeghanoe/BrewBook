@@ -14,7 +14,9 @@ public sealed class ProxyIdentityMiddleware(RequestDelegate next, IOptions<Proxy
         var email = ctx.Request.Headers[_opt.EmailHeader].FirstOrDefault()?.Trim().ToLowerInvariant();
         if (string.IsNullOrEmpty(email) || !email.Contains('@'))
         {
-            log.LogWarning("Rejected request without proxy identity header {Header} on {Path}", _opt.EmailHeader, ctx.Request.Path);
+            // Header names only: enough to see what the proxy actually forwards, never a value.
+            log.LogWarning("Rejected request without proxy identity header {Header} on {Path}; headers present: {Names}",
+                _opt.EmailHeader, ctx.Request.Path, string.Join(", ", ctx.Request.Headers.Keys.OrderBy(k => k)));
             ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
             await ctx.Response.WriteAsJsonAsync(new { type = "about:blank", title = "Unauthenticated", status = 401, detail = "Requests must arrive through the auth proxy." });
             return;

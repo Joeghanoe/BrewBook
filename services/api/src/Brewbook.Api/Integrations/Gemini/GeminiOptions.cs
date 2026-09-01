@@ -9,7 +9,7 @@ public sealed class GeminiOptions
     public const string SectionName = "Gemini";
 
     public string? ApiKey { get; set; }
-    public string Model { get; set; } = "gemini-2.5-flash";
+    public string Model { get; set; } = "gemini-3.6-flash";
     public string Endpoint { get; set; } = "https://generativelanguage.googleapis.com/v1beta";
     public int TimeoutSeconds { get; set; } = 40;
 
