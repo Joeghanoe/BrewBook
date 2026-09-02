@@ -24,7 +24,10 @@ export const Home = () => {
             {bean ? `${bean.roaster ?? "unknown roaster"} · ${days === null ? "roast date unset" : `${days} d off roast`}` : "open the library to add one"}
           </div>
         </button>
-        <EyeGlyph onClick={() => (bean ? s.setScreen("bean") : s.setScreen("library"))} />
+        <div className="home-acts">
+          <button className="link profile-link" onClick={() => s.setScreen("profile")}>PROFILE</button>
+          <EyeGlyph onClick={() => (bean ? s.setScreen("bean") : s.setScreen("library"))} />
+        </div>
       </div>
 
       <div className="ticket">

@@ -1,4 +1,4 @@
-import type { Bean, Brew, BrewParams, CreateBean, FlavourTag, LabelScan, Me, VoiceParse } from "./types";
+import type { Bean, Brew, BrewParams, CreateBean, FlavourTag, LabelScan, Me, Profile, VoiceParse } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -37,6 +37,7 @@ const json = (method: string, body: unknown): RequestInit => ({
 export const api = {
   me: () => request<Me>("/me"),
   markOnboarded: () => request<Me>("/me/onboarded", { method: "POST" }),
+  profile: () => request<Profile>("/profile"),
   beans: () => request<Bean[]>("/beans"),
   createBean: (b: CreateBean) => request<Bean>("/beans", json("POST", b)),
   archiveBean: (id: string, archived: boolean) => request<Bean>(`/beans/${id}`, json("PATCH", { archived })),
