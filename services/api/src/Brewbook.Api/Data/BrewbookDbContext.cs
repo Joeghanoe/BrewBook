@@ -10,6 +10,7 @@ public sealed class BrewbookDbContext(DbContextOptions<BrewbookDbContext> option
     public DbSet<Brew> Brews => Set<Brew>();
     public DbSet<FlavourTag> FlavourTags => Set<FlavourTag>();
     public DbSet<Achievement> Achievements => Set<Achievement>();
+    public DbSet<Roaster> Roasters => Set<Roaster>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -36,7 +37,23 @@ public sealed class BrewbookDbContext(DbContextOptions<BrewbookDbContext> option
             e.Property(x => x.RoastLevel).HasMaxLength(100);
             e.Property(x => x.LabelScanId).HasMaxLength(100);
             e.HasIndex(x => new { x.UserId, x.Archived });
+            e.HasIndex(x => x.RoasterId);
             e.HasOne(x => x.User).WithMany(u => u.Beans).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            // A roaster row outlives any one bag; unlinking keeps the bag and its text roaster.
+            e.HasOne(x => x.LinkedRoaster).WithMany(r => r.Beans).HasForeignKey(x => x.RoasterId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<Roaster>(e =>
+        {
+            e.ToTable("roasters");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.NormalisedName).HasMaxLength(200).IsRequired();
+            e.HasIndex(x => x.NormalisedName).IsUnique();
+            e.Property(x => x.GooglePlaceId).HasMaxLength(300);
+            e.Property(x => x.FormattedAddress).HasMaxLength(500);
+            e.Property(x => x.Website).HasMaxLength(500);
+            e.Ignore(x => x.Located);
         });
 
         b.Entity<Brew>(e =>

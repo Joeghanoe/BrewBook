@@ -5,6 +5,7 @@ import { Home } from "./screens/Home";
 import { Library } from "./screens/Library";
 import { Passport } from "./screens/Passport";
 import { Profile } from "./screens/Profile";
+import { Roasters } from "./screens/Roasters";
 import { Scan } from "./screens/Scan";
 import { ScanForm } from "./screens/ScanForm";
 import { Splash } from "./screens/Splash";
@@ -31,6 +32,7 @@ export const App = () => {
             {s.screen === "timer" && <Timer />}
             {s.screen === "bean" && <BeanDetail />}
             {s.screen === "library" && <Library />}
+            {s.screen === "roasters" && <Roasters />}
             {s.screen === "scan" && <Scan />}
             {s.screen === "scanform" && <ScanForm />}
             {s.screen === "passport" && <Passport />}

@@ -13,8 +13,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Brewbook.Api.Data.Migrations
 {
     [DbContext(typeof(BrewbookDbContext))]
-    [Migration("20260902110403_Achievements")]
-    partial class Achievements
+    [Migration("20260902071442_Roasters")]
+    partial class Roasters
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,28 +25,6 @@ namespace Brewbook.Api.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("Brewbook.Api.Domain.Achievement", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Key")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid?>("BrewId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("UnlockedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("UserId", "Key");
-
-                    b.HasIndex("BrewId");
-
-                    b.ToTable("achievements", (string)null);
-                });
 
             modelBuilder.Entity("Brewbook.Api.Domain.Bean", b =>
                 {
@@ -103,6 +81,9 @@ namespace Brewbook.Api.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<Guid?>("RoasterId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
@@ -111,6 +92,8 @@ namespace Brewbook.Api.Data.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RoasterId");
 
                     b.HasIndex("UserId", "Archived");
 
@@ -195,6 +178,54 @@ namespace Brewbook.Api.Data.Migrations
                     b.ToTable("flavour_tags", (string)null);
                 });
 
+            modelBuilder.Entity("Brewbook.Api.Domain.Roaster", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FormattedAddress")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("GooglePlaceId")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<double?>("Lat")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Lng")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("NormalisedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Website")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalisedName")
+                        .IsUnique();
+
+                    b.ToTable("roasters", (string)null);
+                });
+
             modelBuilder.Entity("Brewbook.Api.Domain.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -213,9 +244,6 @@ namespace Brewbook.Api.Data.Migrations
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
 
-                    b.Property<DateTimeOffset?>("OnboardedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
@@ -224,31 +252,20 @@ namespace Brewbook.Api.Data.Migrations
                     b.ToTable("users", (string)null);
                 });
 
-            modelBuilder.Entity("Brewbook.Api.Domain.Achievement", b =>
-                {
-                    b.HasOne("Brewbook.Api.Domain.Brew", "Brew")
-                        .WithMany()
-                        .HasForeignKey("BrewId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Brewbook.Api.Domain.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Brew");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Brewbook.Api.Domain.Bean", b =>
                 {
+                    b.HasOne("Brewbook.Api.Domain.Roaster", "LinkedRoaster")
+                        .WithMany("Beans")
+                        .HasForeignKey("RoasterId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Brewbook.Api.Domain.User", "User")
                         .WithMany("Beans")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("LinkedRoaster");
 
                     b.Navigation("User");
                 });
@@ -291,6 +308,11 @@ namespace Brewbook.Api.Data.Migrations
             modelBuilder.Entity("Brewbook.Api.Domain.Brew", b =>
                 {
                     b.Navigation("FlavourTags");
+                });
+
+            modelBuilder.Entity("Brewbook.Api.Domain.Roaster", b =>
+                {
+                    b.Navigation("Beans");
                 });
 
             modelBuilder.Entity("Brewbook.Api.Domain.User", b =>

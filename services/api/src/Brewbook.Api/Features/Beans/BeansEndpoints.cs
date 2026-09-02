@@ -4,6 +4,7 @@ using Brewbook.Api.Data;
 using Brewbook.Api.Domain;
 using Brewbook.Api.Features.Achievements;
 using Brewbook.Api.Features.Labels;
+using Brewbook.Api.Features.Roasters;
 using Microsoft.EntityFrameworkCore;
 
 namespace Brewbook.Api.Features.Beans;
@@ -37,7 +38,7 @@ public static class BeansEndpoints
                 Id = Guid.NewGuid(),
                 UserId = me.Id,
                 Name = name,
-                Roaster = Clean(req.Roaster),
+                Roaster = RoasterName.Display(req.Roaster),
                 Origin = Clean(req.Origin),
                 Process = Clean(req.Process),
                 RoastDate = req.RoastDate,
@@ -51,7 +52,7 @@ public static class BeansEndpoints
                 CreatedAt = clock.GetUtcNow(),
             };
             db.Beans.Add(bean);
-            await db.SaveChangesAsync(ct);
+            await RoasterLinker.LinkAndSaveAsync(db, bean, clock, ct);
             // Bag stamps show up on the passport; the bean response stays a bean.
             await achievements.EvaluateAsync(me.Id, null, ct);
             return Results.Created($"/api/v1/beans/{bean.Id}", BeanResponse.From(bean, 0, null));

@@ -1,4 +1,4 @@
-import type { Bean, Brew, BrewParams, CreateBean, FlavourTag, LabelScan, Me, Passport, Profile, VoiceParse } from "./types";
+import type { Bean, Brew, BrewParams, Config, CreateBean, FlavourTag, LabelScan, Me, Passport, Profile, Roaster, VoiceParse } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -61,5 +61,8 @@ export const api = {
     form.append("current", JSON.stringify(current));
     return request<VoiceParse>("/voice/transcribe", { method: "POST", body: form });
   },
+  config: () => request<Config>("/config"),
+  roasters: (flavours: string[]) => request<Roaster[]>("/roasters" + (flavours.length ? "?flavours=" + encodeURIComponent(flavours.join(",")) : "")),
+  relocateRoaster: (id: string, query: string | null) => request<Roaster>(`/roasters/${id}/relocate`, json("POST", { query })),
   signOutUrl: "/oauth2/sign_out",
 };

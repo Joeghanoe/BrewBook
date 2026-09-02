@@ -1,0 +1,84 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.Extensions.Options;
+
+namespace Brewbook.Api.Integrations.GooglePlaces;
+
+/// <summary>Places API (New) Text Search: one query in, the best-ranked place out.</summary>
+public sealed class GooglePlacesLocator(HttpClient http, IOptions<GoogleMapsOptions> options, ILogger<GooglePlacesLocator> log) : IRoasterLocator
+{
+    private readonly GoogleMapsOptions _opt = options.Value;
+
+    // Billing is per field group; ask for exactly what the roasters row stores.
+    private const string FieldMask = "places.id,places.displayName,places.formattedAddress,places.location,places.websiteUri";
+
+    public bool Configured => true;
+
+    public async Task<LocateResult> LocateAsync(string query, string? hint, CancellationToken ct)
+    {
+        var text = BuildQuery(query, hint);
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{_opt.PlacesEndpoint.TrimEnd('/')}/places:searchText");
+            req.Headers.Add("X-Goog-Api-Key", _opt.ServerKey);
+            req.Headers.Add("X-Goog-FieldMask", FieldMask);
+            req.Content = JsonContent.Create(new { textQuery = text, pageSize = 1 }, options: Json);
+
+            using var res = await http.SendAsync(req, ct);
+            if (!res.IsSuccessStatusCode)
+            {
+                // Log status and the API's own message only; the request URL never carries the key, the header does.
+                var err = await res.Content.ReadFromJsonAsync<ErrorEnvelope>(Json, ct);
+                log.LogError("Places text search returned {Status}: {Message}", (int)res.StatusCode, err?.Error?.Message ?? res.ReasonPhrase);
+                return LocateResult.Unavailable;
+            }
+
+            var parsed = await res.Content.ReadFromJsonAsync<Response>(Json, ct);
+            return Map(parsed);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            log.LogWarning("Places text search timed out after {Seconds}s", _opt.TimeoutSeconds);
+            return LocateResult.Unavailable;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException)
+        {
+            log.LogError(ex, "Places text search failed");
+            return LocateResult.Unavailable;
+        }
+    }
+
+    /// <summary>"Symple coffee roaster, Colombia" — the word "roaster" steers the ranking away from cafés with the same name.</summary>
+    public static string BuildQuery(string query, string? hint)
+    {
+        var q = query.Trim();
+        if (!q.Contains("roast", StringComparison.OrdinalIgnoreCase)) q += " coffee roaster";
+        return string.IsNullOrWhiteSpace(hint) ? q : $"{q}, {hint.Trim()}";
+    }
+
+    /// <summary>Pure mapping from the API's JSON shape; tested without a network.</summary>
+    public static LocateResult Map(Response? parsed)
+    {
+        var p = parsed?.Places?.FirstOrDefault();
+        if (p is null || p.Id is null || p.Location is null) return LocateResult.NotFound;
+        var name = string.IsNullOrWhiteSpace(p.DisplayName?.Text) ? null : p.DisplayName.Text.Trim();
+        if (name is null) return LocateResult.NotFound;
+        return new LocateResult(LocateStatus.Located,
+            new RoasterPlace(p.Id, name, p.FormattedAddress, p.Location.Latitude, p.Location.Longitude, p.WebsiteUri));
+    }
+
+    private static readonly JsonSerializerOptions Json = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
+    public sealed record Response(List<Place>? Places);
+    public sealed record Place(string? Id, LocalizedText? DisplayName, string? FormattedAddress, LatLng? Location, string? WebsiteUri);
+    public sealed record LocalizedText(string? Text, string? LanguageCode);
+    public sealed record LatLng(double Latitude, double Longitude);
+    private sealed record ErrorEnvelope(ErrorBody? Error);
+    private sealed record ErrorBody(int Code, string? Message, string? Status);
+}
