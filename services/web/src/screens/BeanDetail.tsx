@@ -10,7 +10,8 @@ export const BeanDetail = () => {
   if (!bean) { s.setScreen("library"); return null; }
   const hist = s.brewsFor(bean.id); // newest first
   const days = daysOffRoast(bean.roastDate);
-  const sub = [bean.roaster, [bean.origin, bean.process].filter(Boolean).join(" · ")].filter(Boolean).join(" — ");
+  const originLine = [bean.origin, bean.process].filter(Boolean).join(" · ");
+  const openMap = () => { s.setRoasterFocus(bean.roasterId); s.setScreen("roasters"); };
 
   return (
     <div className="screen">
@@ -23,7 +24,14 @@ export const BeanDetail = () => {
       </div>
       <div className="plaque">
         <div className="name">{bean.name}</div>
-        <div className="sub">{sub || "no roaster or origin on record"}</div>
+        <div className="sub">
+          {bean.roaster && bean.roasterId
+            ? <button className="roaster-link" onClick={openMap}>{bean.roaster} ↗</button>
+            : bean.roaster}
+          {bean.roaster && originLine ? " — " : ""}
+          {originLine}
+          {!bean.roaster && !originLine && "no roaster or origin on record"}
+        </div>
         <div className="chips">
           <div className="tag-solid">{days === null ? "ROAST DATE UNSET" : `${days} DAYS OFF ROAST`}</div>
           {bean.declaredNotes.map((n) => <div key={n} className="tag-dash">{n}</div>)}

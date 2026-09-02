@@ -7,7 +7,10 @@ public sealed class Bean
     public User? User { get; set; }
 
     public required string Name { get; set; }
+    /// <summary>As printed on the bag. Display and fallback; <see cref="RoasterId"/> is the resolved row.</summary>
     public string? Roaster { get; set; }
+    public Guid? RoasterId { get; set; }
+    public Roaster? LinkedRoaster { get; set; }
     public string? Origin { get; set; }
     public string? Process { get; set; }
     public DateOnly? RoastDate { get; set; }

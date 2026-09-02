@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace Brewbook.Api.Tests;
 
 /// <summary>The real composition root on an in-memory SQLite database. One database per factory, so tests do not share state.</summary>
-public sealed class ApiFactory : WebApplicationFactory<Program>
+public sealed class ApiFactory(Action<IServiceCollection>? configure = null) : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection _conn = new("DataSource=:memory:");
 
@@ -25,6 +25,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<IDbContextOptionsConfiguration<BrewbookDbContext>>();
             services.RemoveAll<BrewbookDbContext>();
             services.AddDbContext<BrewbookDbContext>(o => o.UseSqlite(_conn));
+            configure?.Invoke(services);
             using var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
             scope.ServiceProvider.GetRequiredService<BrewbookDbContext>().Database.EnsureCreated();

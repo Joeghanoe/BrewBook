@@ -5,9 +5,11 @@ using Brewbook.Api.Features.Beans;
 using Brewbook.Api.Features.Brews;
 using Brewbook.Api.Features.Labels;
 using Brewbook.Api.Features.Profile;
+using Brewbook.Api.Features.Roasters;
 using Brewbook.Api.Features.Users;
 using Brewbook.Api.Features.Voice;
 using Brewbook.Api.Integrations.Gemini;
+using Brewbook.Api.Integrations.GooglePlaces;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,6 +26,13 @@ builder.Services.Configure<GeminiOptions>(o =>
     builder.Configuration.GetSection(GeminiOptions.SectionName).Bind(o);
     // The key is an environment secret (Railway), never appsettings.
     o.ApiKey = builder.Configuration["GEMINI_API_KEY"] ?? o.ApiKey;
+});
+builder.Services.Configure<GoogleMapsOptions>(o =>
+{
+    builder.Configuration.GetSection(GoogleMapsOptions.SectionName).Bind(o);
+    // Both keys are environment secrets (Railway), never appsettings.
+    o.ServerKey = builder.Configuration["GOOGLE_MAPS_SERVER_KEY"] ?? o.ServerKey;
+    o.BrowserKey = builder.Configuration["GOOGLE_MAPS_BROWSER_KEY"] ?? o.BrowserKey;
 });
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
@@ -52,6 +61,14 @@ else
     builder.Services.AddSingleton<ISpeechTranscriber, UnconfiguredSpeechTranscriber>();
 }
 
+var maps = new GoogleMapsOptions();
+builder.Configuration.GetSection(GoogleMapsOptions.SectionName).Bind(maps);
+maps.ServerKey = builder.Configuration["GOOGLE_MAPS_SERVER_KEY"] ?? maps.ServerKey;
+if (maps.ServerConfigured)
+    builder.Services.AddHttpClient<IRoasterLocator, GooglePlacesLocator>(c => c.Timeout = TimeSpan.FromSeconds(maps.TimeoutSeconds));
+else
+    builder.Services.AddSingleton<IRoasterLocator, UnconfiguredRoasterLocator>();
+
 var app = builder.Build();
 
 // ---- Pipeline --------------------------------------------------------------
@@ -63,15 +80,19 @@ app.UseStatusCodePages();
 app.MapHealthChecks("/health");
 
 var api = app.MapGroup("/api/v1");
-api.MapUsers().MapBeans().MapBrews().MapVoice().MapProfile();
+api.MapUsers().MapBeans().MapBrews().MapVoice().MapProfile().MapRoasters();
 
 // Only /api/* is user-facing; everything under it needs an identity from the proxy.
 app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"), branch => branch.UseMiddleware<ProxyIdentityMiddleware>());
 
-if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 {
     using var scope = app.Services.CreateScope();
-    await scope.ServiceProvider.GetRequiredService<BrewbookDbContext>().Database.MigrateAsync();
+    var db = scope.ServiceProvider.GetRequiredService<BrewbookDbContext>();
+    if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+        await db.Database.MigrateAsync();
+    // Bags added before roasters existed as rows get linked once; afterwards there is nothing to do.
+    var linked = await RoasterLinker.BackfillAsync(db, TimeProvider.System, CancellationToken.None);
+    if (linked > 0) app.Logger.LogInformation("Linked {Count} bags to roasters", linked);
 }
 
 app.Run();

@@ -3,7 +3,7 @@ import { api, ApiError } from "../api/client";
 import type { Bean, Brew, BrewParams, FlavourTag, Me } from "../api/types";
 import { sameParams } from "../lib/format";
 
-export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "profile";
+export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "profile" | "roasters";
 export type Sheet = null | "adjust" | "switcher";
 
 export interface Toast { msg: string; undo?: () => void }
@@ -55,6 +55,9 @@ interface Store {
   guideOpen: boolean;
   openGuide: () => void;
   closeGuide: () => void;
+  /** Roaster the map should open on (from a bean's plaque); the Roasters screen clears it. */
+  roasterFocus: string | null;
+  setRoasterFocus: (id: string | null) => void;
 
   toast: Toast | null;
   showToast: (msg: string, undo?: () => void) => void;
@@ -81,6 +84,7 @@ export function StoreProvider({ children, showSplash = true }: { children: React
   const [toast, setToast] = useState<Toast | null>(null);
   // "auto" shows the guide while the server says the user has not seen it; the GUIDE link forces it open.
   const [guide, setGuide] = useState<"auto" | "open" | "closed">("auto");
+  const [roasterFocus, setRoasterFocus] = useState<string | null>(null);
   const toastT = useRef<number>(0);
   const rateT = useRef<number>(0);
 
@@ -216,7 +220,7 @@ export function StoreProvider({ children, showSplash = true }: { children: React
     params, base, setParam, setParams: setParamsState, loadParams,
     commitBrew, rateBrew, ratePrompt, dismissRatePrompt: () => setRatePrompt(null),
     tagTarget, wheelOpen, openWheel, closeWheel, tags, setTags,
-    addBean, archiveBean, guideOpen, openGuide, closeGuide, toast, showToast, refresh,
+    addBean, archiveBean, guideOpen, openGuide, closeGuide, roasterFocus, setRoasterFocus, toast, showToast, refresh,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
