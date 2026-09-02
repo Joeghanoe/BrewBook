@@ -62,6 +62,13 @@ to upstreams (`pass-user-headers`). The API keys identity on `X-Forwarded-Email`
 that silently: `prefer-email-to-user` (moves the email into `-User` and drops `-Email`) and
 `set-xauthrequest` (only adds `X-Auth-Request-*` to the browser response). Keep both off.
 
+## Variables are the file, nothing more
+
+The live variable set on each service must equal what `railway.ts` declares. `railway config plan`
+will surface anything extra; treat that as a bug, not a warning. In particular never keep a
+variable that merely repeats a code default, and never set one just to trigger a build (push a
+matching commit or use `railway redeploy` instead).
+
 ## Changing things
 
 - New environment variable → add it here (`preserve()` for secrets, a literal for config), set it
