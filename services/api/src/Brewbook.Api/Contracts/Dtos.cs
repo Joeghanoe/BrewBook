@@ -57,6 +57,9 @@ public sealed record UpdateBeanRequest(bool? Archived);
 
 public sealed record FlavourTagDto(string Flavour, int Polarity);
 
+/// <summary>A passport stamp earned by the write that produced this response.</summary>
+public sealed record UnlockedDto(string Key, string Title);
+
 public sealed record BrewResponse(
     Guid Id,
     Guid BeanId,
@@ -67,11 +70,14 @@ public sealed record BrewResponse(
     int Rating,
     IReadOnlyList<string> Defects,
     IReadOnlyList<FlavourTagDto> FlavourTags,
-    DateTimeOffset BrewedAt)
+    DateTimeOffset BrewedAt,
+    /// <summary>Stamps this write earned. Empty on reads and on writes that earned none.</summary>
+    IReadOnlyList<UnlockedDto> NewlyUnlocked)
 {
-    public static BrewResponse From(Brew b) => new(
+    public static BrewResponse From(Brew b, IReadOnlyList<UnlockedDto>? newlyUnlocked = null) => new(
         b.Id, b.BeanId, b.Number, BrewParamsDto.From(BrewParams.From(b)), b.DurationMs, b.PourMarkersMs, b.Rating, b.Defects,
-        b.FlavourTags.OrderBy(t => t.Flavour).Select(t => new FlavourTagDto(t.Flavour, t.Polarity)).ToList(), b.BrewedAt);
+        b.FlavourTags.OrderBy(t => t.Flavour).Select(t => new FlavourTagDto(t.Flavour, t.Polarity)).ToList(), b.BrewedAt,
+        newlyUnlocked ?? []);
 }
 
 public sealed record CreateBrewRequest(Guid BeanId, BrewParamsDto Params, int DurationMs, IReadOnlyList<int>? PourMarkersMs);
@@ -79,6 +85,18 @@ public sealed record CreateBrewRequest(Guid BeanId, BrewParamsDto Params, int Du
 public sealed record RateBrewRequest(int? Rating, IReadOnlyList<string>? Defects);
 
 public sealed record TagBrewRequest(IReadOnlyList<FlavourTagDto> Tags);
+
+public sealed record ProgressDto(int Have, int Of);
+
+public sealed record AchievementDto(string Key, string Title, string Subtitle, bool Unlocked, DateTimeOffset? UnlockedAt, ProgressDto Progress);
+
+public sealed record LeafCoverageDto(string Flavour, string Category, string Group, bool Tasted, DateTimeOffset? LastTaggedAt);
+
+public sealed record CategoryCoverageDto(string Name, int Tasted, int Of);
+
+public sealed record CoverageDto(IReadOnlyList<LeafCoverageDto> Leaves, IReadOnlyList<CategoryCoverageDto> Categories);
+
+public sealed record AchievementsResponse(IReadOnlyList<AchievementDto> Achievements, CoverageDto Coverage);
 
 public sealed record VoiceParseRequest(string Transcript, BrewParamsDto Current);
 

@@ -58,6 +58,9 @@ local (`VoiceCommandParser`), whatever produced the transcript.
   the lexicon knows them and stay quoted text where it does not.
 - A `label scan` is one attempt to read a bag photo. Its fields carry a provenance:
   `extracted`, `partial`, `missing`.
+- An `achievement` is a stamp in the `passport`, earned by tasting (tagging, either polarity)
+  flavours, brewing or adding bags. The catalogue is code (`Features/Achievements`); rules are
+  pure over (brews, tags, beans). A stamp is never taken back.
 
 ## Where the system lives
 
@@ -70,7 +73,7 @@ services/api        .NET 10 ASP.NET Core minimal API + EF Core + Npgsql
     Contracts/        wire DTOs for /api/v1
     Domain/           entities and BrewParams
     Data/             DbContext and append-only migrations
-    Features/         one folder per capability: Beans, Brews, Voice, Labels, Users
+    Features/         one folder per capability: Beans, Brews, Voice, Labels, Users, Achievements
     Integrations/     Gemini client (the only outbound dependency)
   tests/Brewbook.Api.Tests   xunit; the real host on in-memory SQLite
 infra               per-service Dockerfiles, nginx template, local edge config

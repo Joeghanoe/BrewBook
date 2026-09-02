@@ -9,6 +9,7 @@ public sealed class BrewbookDbContext(DbContextOptions<BrewbookDbContext> option
     public DbSet<Bean> Beans => Set<Bean>();
     public DbSet<Brew> Brews => Set<Brew>();
     public DbSet<FlavourTag> FlavourTags => Set<FlavourTag>();
+    public DbSet<Achievement> Achievements => Set<Achievement>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -58,6 +59,16 @@ public sealed class BrewbookDbContext(DbContextOptions<BrewbookDbContext> option
             e.HasKey(x => new { x.BrewId, x.Flavour });
             e.Property(x => x.Flavour).HasMaxLength(100);
             e.HasOne(x => x.Brew).WithMany(br => br.FlavourTags).HasForeignKey(x => x.BrewId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<Achievement>(e =>
+        {
+            e.ToTable("achievements");
+            e.HasKey(x => new { x.UserId, x.Key });
+            e.Property(x => x.Key).HasMaxLength(64);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            // Undoing a brew keeps the stamp; it only loses the pointer.
+            e.HasOne(x => x.Brew).WithMany().HasForeignKey(x => x.BrewId).OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

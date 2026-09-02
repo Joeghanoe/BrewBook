@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Brewbook.Api.Auth;
 using Brewbook.Api.Data;
+using Brewbook.Api.Features.Achievements;
 using Brewbook.Api.Features.Beans;
 using Brewbook.Api.Features.Brews;
 using Brewbook.Api.Features.Labels;
@@ -31,6 +32,7 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<CurrentUser>();
+builder.Services.AddScoped<AchievementService>();
 
 var connectionString = ConnectionStrings.Resolve(builder.Configuration);
 builder.Services.AddDbContext<BrewbookDbContext>(o => o.UseNpgsql(connectionString));
@@ -62,7 +64,7 @@ app.UseStatusCodePages();
 app.MapHealthChecks("/health");
 
 var api = app.MapGroup("/api/v1");
-api.MapUsers().MapBeans().MapBrews().MapVoice();
+api.MapUsers().MapBeans().MapBrews().MapVoice().MapAchievements();
 
 // Only /api/* is user-facing; everything under it needs an identity from the proxy.
 app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"), branch => branch.UseMiddleware<ProxyIdentityMiddleware>());
