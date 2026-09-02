@@ -57,6 +57,12 @@ export interface FlavourTag {
   polarity: 1 | -1;
 }
 
+/** A passport stamp earned by the write that produced the response. */
+export interface Unlocked {
+  key: string;
+  title: string;
+}
+
 export interface Brew {
   id: string;
   beanId: string;
@@ -68,6 +74,41 @@ export interface Brew {
   defects: string[];
   flavourTags: FlavourTag[];
   brewedAt: string;
+  /** Empty on reads and on writes that earned nothing. */
+  newlyUnlocked: Unlocked[];
+}
+
+export interface Progress {
+  have: number;
+  of: number;
+}
+
+export interface Achievement {
+  key: string;
+  title: string;
+  subtitle: string;
+  unlocked: boolean;
+  unlockedAt: string | null;
+  progress: Progress;
+}
+
+export interface LeafCoverage {
+  flavour: string;
+  category: string;
+  group: string;
+  tasted: boolean;
+  lastTaggedAt: string | null;
+}
+
+export interface CategoryCoverage {
+  name: string;
+  tasted: number;
+  of: number;
+}
+
+export interface Passport {
+  achievements: Achievement[];
+  coverage: { leaves: LeafCoverage[]; categories: CategoryCoverage[] };
 }
 
 // Taste profile, derived from brews and tags on every read.

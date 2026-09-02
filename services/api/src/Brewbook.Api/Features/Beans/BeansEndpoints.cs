@@ -2,6 +2,7 @@ using Brewbook.Api.Auth;
 using Brewbook.Api.Contracts;
 using Brewbook.Api.Data;
 using Brewbook.Api.Domain;
+using Brewbook.Api.Features.Achievements;
 using Brewbook.Api.Features.Labels;
 using Brewbook.Api.Features.Roasters;
 using Microsoft.EntityFrameworkCore;
@@ -26,7 +27,7 @@ public static class BeansEndpoints
             return bean is null ? Results.NotFound() : Results.Ok((await Project(db, [bean], ct))[0]);
         });
 
-        g.MapPost("/", async (CreateBeanRequest req, CurrentUser me, BrewbookDbContext db, TimeProvider clock, CancellationToken ct) =>
+        g.MapPost("/", async (CreateBeanRequest req, CurrentUser me, BrewbookDbContext db, TimeProvider clock, AchievementService achievements, CancellationToken ct) =>
         {
             var name = req.Name?.Trim();
             if (string.IsNullOrEmpty(name))
@@ -52,6 +53,8 @@ public static class BeansEndpoints
             };
             db.Beans.Add(bean);
             await RoasterLinker.LinkAndSaveAsync(db, bean, clock, ct);
+            // Bag stamps show up on the passport; the bean response stays a bean.
+            await achievements.EvaluateAsync(me.Id, null, ct);
             return Results.Created($"/api/v1/beans/{bean.Id}", BeanResponse.From(bean, 0, null));
         });
 

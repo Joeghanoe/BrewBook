@@ -2,6 +2,7 @@ using Brewbook.Api.Auth;
 using Brewbook.Api.Contracts;
 using Brewbook.Api.Data;
 using Brewbook.Api.Domain;
+using Brewbook.Api.Features.Achievements;
 using Microsoft.EntityFrameworkCore;
 
 namespace Brewbook.Api.Features.Brews;
@@ -20,10 +21,10 @@ public static class BrewsEndpoints
             if (beanId is { } bid) q = q.Where(b => b.BeanId == bid);
             var take = Math.Clamp(limit ?? 100, 1, 500);
             var brews = await q.OrderByDescending(b => b.Number).Take(take).ToListAsync(ct);
-            return Results.Ok(brews.Select(BrewResponse.From));
+            return Results.Ok(brews.Select(b => BrewResponse.From(b)));
         });
 
-        g.MapPost("/", async (CreateBrewRequest req, CurrentUser me, BrewbookDbContext db, TimeProvider clock, CancellationToken ct) =>
+        g.MapPost("/", async (CreateBrewRequest req, CurrentUser me, BrewbookDbContext db, TimeProvider clock, AchievementService achievements, CancellationToken ct) =>
         {
             var errors = Validate(req);
             if (errors.Count > 0) return Results.ValidationProblem(errors);
@@ -59,7 +60,8 @@ public static class BrewsEndpoints
                     db.Entry(brew).State = EntityState.Detached;
                 }
             }
-            return Results.Created($"/api/v1/brews/{brew.Id}", BrewResponse.From(brew));
+            var unlocked = await achievements.EvaluateAsync(me.Id, brew.Id, ct);
+            return Results.Created($"/api/v1/brews/{brew.Id}", BrewResponse.From(brew, Unlocked(unlocked)));
         });
 
         g.MapDelete("/{id:guid}", async (Guid id, CurrentUser me, BrewbookDbContext db, CancellationToken ct) =>
@@ -74,7 +76,7 @@ public static class BrewsEndpoints
             return Results.NoContent();
         });
 
-        g.MapPatch("/{id:guid}/rating", async (Guid id, RateBrewRequest req, CurrentUser me, BrewbookDbContext db, CancellationToken ct) =>
+        g.MapPatch("/{id:guid}/rating", async (Guid id, RateBrewRequest req, CurrentUser me, BrewbookDbContext db, AchievementService achievements, CancellationToken ct) =>
         {
             if (req.Rating is { } r && (r < 0 || r > 5))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["rating"] = ["Rating must be 0–5."] });
@@ -87,10 +89,11 @@ public static class BrewsEndpoints
             if (req.Rating is { } rating) brew.Rating = rating;
             if (req.Defects is { } defects) brew.Defects = defects.Distinct().ToList();
             await db.SaveChangesAsync(ct);
-            return Results.Ok(BrewResponse.From(brew));
+            var unlocked = await achievements.EvaluateAsync(me.Id, brew.Id, ct);
+            return Results.Ok(BrewResponse.From(brew, Unlocked(unlocked)));
         });
 
-        g.MapPut("/{id:guid}/tags", async (Guid id, TagBrewRequest req, CurrentUser me, BrewbookDbContext db, CancellationToken ct) =>
+        g.MapPut("/{id:guid}/tags", async (Guid id, TagBrewRequest req, CurrentUser me, BrewbookDbContext db, AchievementService achievements, CancellationToken ct) =>
         {
             var bad = req.Tags.Where(t => string.IsNullOrWhiteSpace(t.Flavour) || (t.Polarity != 1 && t.Polarity != -1)).ToList();
             if (bad.Count > 0)
@@ -106,11 +109,15 @@ public static class BrewsEndpoints
                 .Select(gr => new FlavourTag { BrewId = brew.Id, Flavour = gr.Key, Polarity = gr.Last().Polarity })
                 .ToList();
             await db.SaveChangesAsync(ct);
-            return Results.Ok(BrewResponse.From(brew));
+            var unlocked = await achievements.EvaluateAsync(me.Id, brew.Id, ct);
+            return Results.Ok(BrewResponse.From(brew, Unlocked(unlocked)));
         });
 
         return api;
     }
+
+    private static List<UnlockedDto> Unlocked(IReadOnlyList<string> keys)
+        => keys.Select(k => new UnlockedDto(k, AchievementCatalogue.Find(k)?.Title ?? k)).ToList();
 
     private static Dictionary<string, string[]> Validate(CreateBrewRequest req)
     {

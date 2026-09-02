@@ -1,4 +1,4 @@
-import type { Bean, Brew, BrewParams, Config, CreateBean, FlavourTag, LabelScan, Me, Profile, Roaster, VoiceParse } from "./types";
+import type { Bean, Brew, BrewParams, Config, CreateBean, FlavourTag, LabelScan, Me, Passport, Profile, Roaster, VoiceParse } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -53,6 +53,7 @@ export const api = {
   rateBrew: (id: string, rating: number | null, defects: string[] | null) =>
     request<Brew>(`/brews/${id}/rating`, json("PATCH", { rating, defects })),
   tagBrew: (id: string, tags: FlavourTag[]) => request<Brew>(`/brews/${id}/tags`, json("PUT", { tags })),
+  passport: () => request<Passport>("/achievements"),
   parseVoice: (transcript: string, current: BrewParams) => request<VoiceParse>("/voice/parse", json("POST", { transcript, current })),
   transcribeVoice: (audio: Blob, current: BrewParams) => {
     const form = new FormData();

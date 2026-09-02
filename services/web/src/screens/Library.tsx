@@ -19,7 +19,10 @@ export const Library = () => {
         <button className="link" style={{ minHeight: 44 }} onClick={() => s.setScreen("roasters")}>MAP →</button>
       </div>
       <div style={{ overflow: "auto", flex: 1, display: "flex", flexDirection: "column" }}>
-        <div style={{ margin: "18px 22px 0" }}><Rule label="OPEN BAGS" /></div>
+        <button className="rule" style={{ margin: "18px 22px 0", width: "calc(100% - 44px)", minHeight: 44 }} onClick={() => s.setScreen("passport")}>
+          <span>FLAVOUR PASSPORT</span><div className="line" /><span>STAMPS →</span>
+        </button>
+        <div style={{ margin: "14px 22px 0" }}><Rule label="OPEN BAGS" /></div>
         <div style={{ padding: "12px 22px 0", display: "flex", flexDirection: "column", gap: 12 }}>
           {s.beansOpen.length === 0 && <div className="empty" style={{ padding: "14px 0" }}>No open bags — scan a label to add the first one.</div>}
           {s.beansOpen.map((b) => {

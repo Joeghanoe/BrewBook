@@ -5,7 +5,7 @@ import { mapsUrl, pinRadius, ratingLabel, topLikedFlavours } from "./roasters";
 const brew = (tags: [string, 1 | -1][]): Brew => ({
   id: "b", beanId: "x", number: 1, params: { grind: 4.5, doseG: 15, yieldG: 250, tempC: 94, blooms: 2 },
   durationMs: 0, pourMarkersMs: [], rating: 0, defects: [], brewedAt: "2026-09-01T08:00:00Z",
-  flavourTags: tags.map(([flavour, polarity]) => ({ flavour, polarity })),
+  flavourTags: tags.map(([flavour, polarity]) => ({ flavour, polarity })), newlyUnlocked: [],
 });
 
 const roaster = (over: Partial<Roaster>): Roaster => ({

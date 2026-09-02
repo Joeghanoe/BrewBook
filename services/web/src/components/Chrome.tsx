@@ -24,7 +24,7 @@ export const Toast = () => {
   return (
     <div className="toast">
       <span>{toast.msg}</span>
-      {toast.undo && <button onClick={toast.undo}>UNDO</button>}
+      {toast.undo && <button onClick={toast.undo}>{toast.label ?? "UNDO"}</button>}
     </div>
   );
 };
