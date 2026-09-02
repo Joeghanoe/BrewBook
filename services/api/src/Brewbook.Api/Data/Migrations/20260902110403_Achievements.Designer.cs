@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Brewbook.Api.Data.Migrations
 {
     [DbContext(typeof(BrewbookDbContext))]
-    [Migration("20260902061058_Achievements")]
+    [Migration("20260902110403_Achievements")]
     partial class Achievements
     {
         /// <inheritdoc />
@@ -212,6 +212,9 @@ namespace Brewbook.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
+
+                    b.Property<DateTimeOffset?>("OnboardedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 

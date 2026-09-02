@@ -153,6 +153,27 @@ Report which checks ran and whether they passed; leave unclaimed what could not 
 - Never give `api` or `web` a public Railway domain.
 - Do not commit, push, open a PR or merge unless the maintainer asks for that git action.
 
+## Railway hygiene
+
+Lessons from the first deployment day. Each of these cost real debugging time.
+
+- **`railway.ts` is the whole truth for variables.** Every variable on a service is either declared
+  there (literal or `preserve()`) or it is drift. Never leave a variable behind that equals a code
+  default (`ProxyIdentity__*`, `Gemini__Model`) or that was only set to poke a rebuild
+  (`NGINX_ENTRYPOINT_QUIET_LOGS`, `DOTNET_CLI_TELEMETRY_OPTOUT`). Overrides hide the real defaults
+  and make the next `railway config plan` a guessing game.
+- **Trigger a rebuild by pushing a commit that matches the service's watch patterns**, or with
+  `railway redeploy`. Do not set junk variables to force one. If pushes stop triggering builds,
+  fix the GitHub app connection in Railway rather than working around it.
+- **Services build from `main`.** Pointing `web` or `api` at a feature branch is a short-lived
+  debugging move; flip it back the moment the PR merges and say so.
+- **Only `proxy` has a domain.** A domain on `web` or `api` bypasses sign-in. Delete it on sight.
+- **oauth2-proxy → API header contract** is `X-Forwarded-Email` (with `-User`,
+  `-Preferred-Username`) from `pass-user-headers`. `prefer-email-to-user` and `set-xauthrequest`
+  both break it silently and stay off; the reasons are in `.railway/README.md`.
+- **The API logs the header names it received when it rejects a request.** Read that before
+  changing any auth config.
+
 ## When to ask
 
 Ask when the answer changes product behaviour, risks data loss, needs a secret, or widens scope.

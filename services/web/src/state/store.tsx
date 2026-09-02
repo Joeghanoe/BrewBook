@@ -3,7 +3,7 @@ import { api, ApiError } from "../api/client";
 import type { Bean, Brew, BrewParams, FlavourTag, Me, Unlocked } from "../api/types";
 import { sameParams } from "../lib/format";
 
-export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "passport";
+export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "profile" | "passport";
 export type Sheet = null | "adjust" | "switcher";
 
 /** `label` names the action button; it reads UNDO when absent. */
@@ -52,6 +52,11 @@ interface Store {
   addBean: (bean: Bean) => void;
   archiveBean: (id: string, archived: boolean) => Promise<void>;
 
+  /** The guide covers whatever screen is underneath; it opens itself once per user, after the splash. */
+  guideOpen: boolean;
+  openGuide: () => void;
+  closeGuide: () => void;
+
   toast: Toast | null;
   showToast: (msg: string, undo?: () => void, label?: string) => void;
   refresh: () => Promise<void>;
@@ -75,6 +80,8 @@ export function StoreProvider({ children, showSplash = true }: { children: React
   const [wheelOpen, setWheelOpen] = useState(false);
   const [tags, setTags] = useState<FlavourTag[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
+  // "auto" shows the guide while the server says the user has not seen it; the GUIDE link forces it open.
+  const [guide, setGuide] = useState<"auto" | "open" | "closed">("auto");
   const toastT = useRef<number>(0);
   const rateT = useRef<number>(0);
 
@@ -202,13 +209,23 @@ export function StoreProvider({ children, showSplash = true }: { children: React
     try { patchBean(await api.archiveBean(id, archived)); } catch { showToast("Could not update the bag"); }
   };
 
+  const guideOpen = guide === "open" || (guide === "auto" && me?.onboardedAt === null);
+  const openGuide = () => setGuide("open");
+  const closeGuide = () => {
+    setGuide("closed");
+    if (!me || me.onboardedAt !== null) return;
+    // Stamped server-side so it holds across devices; the local copy keeps the guide from reopening meanwhile.
+    setMe({ ...me, onboardedAt: new Date().toISOString() });
+    api.markOnboarded().then(setMe).catch(() => showToast("Guide not marked as seen — it may open once more"));
+  };
+
   const value: Store = {
     loading, error, me, beans, brews, screen, setScreen, sheet, setSheet,
     currentBean, selectBean: setCurrentId, beansOpen, beansArchived, brewsFor, nextNumber,
     params, base, setParam, setParams: setParamsState, loadParams,
     commitBrew, rateBrew, ratePrompt, dismissRatePrompt: () => setRatePrompt(null),
     tagTarget, wheelOpen, openWheel, closeWheel, tags, setTags,
-    addBean, archiveBean, toast, showToast, refresh,
+    addBean, archiveBean, guideOpen, openGuide, closeGuide, toast, showToast, refresh,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

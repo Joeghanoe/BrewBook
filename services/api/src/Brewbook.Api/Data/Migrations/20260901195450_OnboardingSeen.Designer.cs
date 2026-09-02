@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Brewbook.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Brewbook.Api.Data.Migrations
 {
     [DbContext(typeof(BrewbookDbContext))]
-    partial class BrewbookDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260901195450_OnboardingSeen")]
+    partial class OnboardingSeen
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,28 +25,6 @@ namespace Brewbook.Api.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("Brewbook.Api.Domain.Achievement", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Key")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid?>("BrewId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("UnlockedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("UserId", "Key");
-
-                    b.HasIndex("BrewId");
-
-                    b.ToTable("achievements", (string)null);
-                });
 
             modelBuilder.Entity("Brewbook.Api.Domain.Bean", b =>
                 {
@@ -219,24 +200,6 @@ namespace Brewbook.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("users", (string)null);
-                });
-
-            modelBuilder.Entity("Brewbook.Api.Domain.Achievement", b =>
-                {
-                    b.HasOne("Brewbook.Api.Domain.Brew", "Brew")
-                        .WithMany()
-                        .HasForeignKey("BrewId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("Brewbook.Api.Domain.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Brew");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Brewbook.Api.Domain.Bean", b =>

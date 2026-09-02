@@ -15,7 +15,8 @@ export const Library = () => {
         <button className="sqbtn" onClick={() => s.setScreen("home")} aria-label="Back">←</button>
         <div className="title">BEAN LIBRARY</div>
         <div style={{ flex: 1 }} />
-        <button className="link" onClick={() => s.setScreen("passport")}>PASSPORT →</button>
+        <button className="link" style={{ minHeight: 44 }} onClick={s.openGuide}>GUIDE</button>
+        <button className="link" style={{ minHeight: 44 }} onClick={() => s.setScreen("passport")}>PASSPORT →</button>
       </div>
       <div style={{ overflow: "auto", flex: 1, display: "flex", flexDirection: "column" }}>
         <div style={{ margin: "18px 22px 0" }}><Rule label="OPEN BAGS" /></div>

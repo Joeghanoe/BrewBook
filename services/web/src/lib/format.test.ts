@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysOffRoast, describeDelta, fmtTime, sameAsLabel, whenLabel } from "./format";
+import { daysOffRoast, describeDelta, describePreference, fmtTime, sameAsLabel, whenLabel } from "./format";
 
 const now = new Date(2026, 8, 1, 9, 41); // 1 Sep 2026, Tuesday
 
@@ -22,6 +22,17 @@ describe("format", () => {
     expect(describeDelta({ ...base, tempC: 93 }, base)).toBe("93°C (was 94)");
     expect(describeDelta({ ...base, grind: 4 }, base)).toBe("−0.5 grind");
     expect(describeDelta(base, base)).toBe("same as last");
+  });
+
+  it("describes a preferred value against the overall median", () => {
+    expect(describePreference("grind", 4, 4.5)).toBe("−0.5 FINER");
+    expect(describePreference("grind", 5, 4.5)).toBe("+0.5 COARSER");
+    expect(describePreference("doseG", 15.5, 15)).toBe("+0.5 G");
+    expect(describePreference("yieldG", 240, 250)).toBe("−10 G");
+    expect(describePreference("tempC", 93, 93.5)).toBe("−0.5°C");
+    expect(describePreference("blooms", 3, 2)).toBe("+1 BLOOM");
+    expect(describePreference("blooms", 1, 3)).toBe("−2 BLOOMS");
+    expect(describePreference("tempC", 94, 94)).toBe("SAME");
   });
 
   it("labels when a brew happened", () => {
