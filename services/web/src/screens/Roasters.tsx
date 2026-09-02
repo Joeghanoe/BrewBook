@@ -218,7 +218,7 @@ const RoasterSheet = ({ roaster: r, onClose, onPatched }: { roaster: Roaster; on
         )}
         {/* Three friends who disagree show three ratings. The app never averages people into a score. */}
         {r.voices.map((v) => (
-          <button key={v.userId} className={"voice" + (v.isMe ? " me" : "")} disabled={v.isMe}
+          <button key={v.userId} className={"roaster-voice" + (v.isMe ? " me" : "")} disabled={v.isMe}
             onClick={() => setReading(v)}>
             <div className={"avatar" + (v.isMe ? " me" : "")}>{v.initials}</div>
             <div className="body">

@@ -3,7 +3,7 @@ import { api, ApiError } from "../api/client";
 import type { Bean, Brew, BrewParams, FlavourTag, Friends, Me, RoasterScope, Unlocked } from "../api/types";
 import { sameParams } from "../lib/format";
 
-export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "profile" | "roasters" | "passport" | "friends";
+export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "profile" | "roasters" | "passport" | "friends" | "beanedit";
 export type Sheet = null | "adjust" | "switcher";
 
 /** Whose numbers the ticket is carrying, until they have been brewed once and become the user's own. */
@@ -55,6 +55,8 @@ interface Store {
   setTags: (t: FlavourTag[]) => void;
 
   addBean: (bean: Bean) => void;
+  /** Folds an edited bag back into the list without a refetch. */
+  patchBean: (bean: Bean) => void;
   archiveBean: (id: string, archived: boolean) => Promise<void>;
   /** Answers the archive prompt with "not yet": the bag stays open and is never asked about again. */
   keepBean: (id: string) => Promise<void>;
@@ -296,7 +298,7 @@ export function StoreProvider({ children, showSplash = true }: { children: React
     params, base, setParam, setParams: setParamsState, loadParams, ticketSource,
     commitBrew, rateBrew, ratePrompt, dismissRatePrompt: () => setRatePrompt(null),
     tagTarget, wheelOpen, openWheel, closeWheel, tags, setTags,
-    addBean, archiveBean, keepBean, setBrewPrivacy, setSharing,
+    addBean, patchBean, archiveBean, keepBean, setBrewPrivacy, setSharing,
     hasFriends, scope: hasFriends ? scope : "mine", setScope, friends, friendsError, loadFriends,
     invite: hasFriends ? invite : null, clearInvite,
     guideOpen, openGuide, closeGuide, roasterFocus, setRoasterFocus, toast, showToast, refresh,

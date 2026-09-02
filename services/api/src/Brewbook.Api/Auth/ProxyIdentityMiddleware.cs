@@ -22,8 +22,8 @@ public sealed class ProxyIdentityMiddleware(RequestDelegate next, IOptions<Proxy
             return;
         }
 
-        var displayName = ctx.Request.Headers[_opt.PreferredUsernameHeader].FirstOrDefault()
-                          ?? ctx.Request.Headers[_opt.UserHeader].FirstOrDefault();
+        var displayName = ProxyIdentity.CleanDisplayName(ctx.Request.Headers[_opt.PreferredUsernameHeader].FirstOrDefault())
+                          ?? ProxyIdentity.CleanDisplayName(ctx.Request.Headers[_opt.UserHeader].FirstOrDefault());
 
         var user = await db.Users.SingleOrDefaultAsync(u => u.Email == email, ctx.RequestAborted);
         if (user is null)
@@ -40,6 +40,13 @@ public sealed class ProxyIdentityMiddleware(RequestDelegate next, IOptions<Proxy
                 db.Entry(user).State = EntityState.Detached;
                 user = await db.Users.SingleAsync(u => u.Email == email, ctx.RequestAborted);
             }
+        }
+
+        // Users provisioned before the check above carry a subject id as their name. Clear it once.
+        else if (user.DisplayName is not null && ProxyIdentity.CleanDisplayName(user.DisplayName) is null)
+        {
+            user.DisplayName = null;
+            await db.SaveChangesAsync(ctx.RequestAborted);
         }
 
         current.User = user;

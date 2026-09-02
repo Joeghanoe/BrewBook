@@ -61,6 +61,24 @@ export interface CreateBean {
   labelScanId?: string | null;
 }
 
+/** Editing a bag. Every field is optional: omit one to leave it alone, send "" to clear it. */
+export interface UpdateBean {
+  name?: string;
+  roaster?: string;
+  origin?: string;
+  process?: string;
+  roastDate?: string | null;
+  clearRoastDate?: boolean;
+  producer?: string;
+  varietal?: string;
+  altitude?: string;
+  roastLevel?: string;
+  declaredNotes?: string[];
+  weightG?: number | null;
+  clearWeight?: boolean;
+  archived?: boolean;
+}
+
 export interface FlavourTag {
   flavour: string;
   polarity: 1 | -1;

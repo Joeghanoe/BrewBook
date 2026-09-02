@@ -9,7 +9,7 @@ import { FriendsIcon, LibraryIcon, MapIcon, ProfileIcon, TicketIcon } from "./Ic
  */
 const TABS: { screen: Screen; label: string; under: Screen[]; icon: ReactNode }[] = [
   { screen: "home", label: "HOME", under: [], icon: <TicketIcon /> },
-  { screen: "library", label: "LIBRARY", under: ["bean", "scan", "scanform"], icon: <LibraryIcon /> },
+  { screen: "library", label: "LIBRARY", under: ["bean", "beanedit", "scan", "scanform"], icon: <LibraryIcon /> },
   { screen: "roasters", label: "MAP", under: [], icon: <MapIcon /> },
   { screen: "friends", label: "FRIENDS", under: [], icon: <FriendsIcon /> },
   { screen: "profile", label: "PROFILE", under: ["passport"], icon: <ProfileIcon /> },

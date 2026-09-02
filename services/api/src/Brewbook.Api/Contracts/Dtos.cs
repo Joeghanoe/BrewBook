@@ -78,8 +78,29 @@ public sealed record CreateBeanRequest(
     decimal? WeightG,
     string? LabelScanId);
 
-/// <summary>Archiving is always the user's word; <c>ArchivePromptAnswered</c> records that the bag was asked about, whatever the answer.</summary>
-public sealed record UpdateBeanRequest(bool? Archived, bool? ArchivePromptAnswered);
+/// <summary>
+/// Editing a bag after the fact — a roast date the label did not carry, a name read wrong (§7).
+/// Every field is optional and null means "leave it alone"; an empty string clears the field, so a
+/// wrong value can be taken back off. Archiving is always the user's word, and
+/// <c>ArchivePromptAnswered</c> records that the bag was asked about whatever the answer.
+/// </summary>
+public sealed record UpdateBeanRequest(
+    bool? Archived = null,
+    bool? ArchivePromptAnswered = null,
+    string? Name = null,
+    string? Roaster = null,
+    string? Origin = null,
+    string? Process = null,
+    /// <summary>The date itself, or <c>ClearRoastDate</c> to take it back off.</summary>
+    DateOnly? RoastDate = null,
+    bool? ClearRoastDate = null,
+    string? Producer = null,
+    string? Varietal = null,
+    string? Altitude = null,
+    string? RoastLevel = null,
+    IReadOnlyList<string>? DeclaredNotes = null,
+    decimal? WeightG = null,
+    bool? ClearWeight = null);
 
 /// <summary>
 /// One person's word on a roaster. Ratings stay attributed and are never averaged across people

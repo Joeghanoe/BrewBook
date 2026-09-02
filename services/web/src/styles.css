@@ -237,8 +237,8 @@ svg { display: block; }
 /* Bean detail */
 .plaque { margin: 14px 22px 0; border: 1px solid var(--copper-55); position: relative; padding: 18px 20px 16px; background: rgba(194, 144, 94, 0.05); }
 .plaque::after { content: ""; position: absolute; inset: 4px; border: 1px solid rgba(194, 144, 94, 0.28); pointer-events: none; }
-.plaque .name { font: 700 24px var(--grotesk); letter-spacing: 2px; color: var(--text); text-transform: uppercase; }
-.plaque .sub { font: 400 13px var(--grotesk); letter-spacing: 1px; color: rgba(233, 214, 174, 0.65); margin-top: 4px; }
+.plaque .name { font: 700 24px var(--grotesk); letter-spacing: 2px; color: var(--text); text-transform: uppercase; overflow-wrap: anywhere; }
+.plaque .sub { font: 400 13px var(--grotesk); letter-spacing: 1px; color: rgba(233, 214, 174, 0.65); margin-top: 4px; overflow-wrap: anywhere; }
 .plaque .roaster-link { font: inherit; letter-spacing: inherit; color: var(--copper-light); padding: 10px 0; margin: -10px 0; border-bottom: 1px dotted var(--copper-45); }
 .plaque .chips { gap: 8px; margin-top: 12px; }
 .tag-solid { padding: 5px 10px; border: 1px solid rgba(194, 144, 94, 0.5); font: 700 10px var(--courier); letter-spacing: 2px; color: var(--copper-light); }
@@ -485,16 +485,17 @@ a.act { text-decoration: none; }
 .roaster-row .pin.friend { background: var(--green); color: var(--ink); }
 .roaster-row .pin.wish { background: transparent; border: 1px dashed var(--copper-55); color: var(--copper-light); }
 
-.voice { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 0; border-bottom: 1px solid rgba(194, 144, 94, 0.15); min-height: 44px; }
-.voice .body { flex: 1; min-width: 0; }
-.voice .name { font: 600 14px var(--grotesk); color: var(--text); }
-.voice .sub { font: 400 11px var(--grotesk); color: var(--text-50); margin-top: 2px; }
-.voice .go { font: 700 13px var(--courier); color: var(--copper-light); flex: none; }
-.voice .score { flex: none; text-align: right; }
-.voice .score .stars { font-size: 11px; letter-spacing: 1px; }
-.voice .score .avg { font: 700 9px var(--courier); letter-spacing: 1px; color: var(--text-50); margin-top: 2px; }
-.voice .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.voice:disabled { opacity: 1; cursor: default; }
+.roaster-voice { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 0; border-bottom: 1px solid rgba(194, 144, 94, 0.15); min-height: 44px; }
+.roaster-voice .body { flex: 1; min-width: 0; }
+.roaster-voice .name { font: 600 14px var(--grotesk); color: var(--text); }
+.roaster-voice .sub { font: 400 11px var(--grotesk); color: var(--text-50); margin-top: 2px; }
+.roaster-voice .go { font: 700 13px var(--courier); color: var(--copper-light); flex: none; }
+.roaster-voice .score { flex: none; text-align: right; }
+.roaster-voice .score .stars { font-size: 11px; letter-spacing: 1px; }
+.roaster-voice .score .avg { font: 700 9px var(--courier); letter-spacing: 1px; color: var(--text-50); margin-top: 2px; }
+.roaster-voice .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roaster-voice .score .avg { white-space: nowrap; }
+.roaster-voice:disabled { opacity: 1; cursor: default; }
 
 .recipes { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; max-height: 46vh; overflow: auto; }
 .recipe { border: 1px solid var(--copper-30); padding: 14px; }

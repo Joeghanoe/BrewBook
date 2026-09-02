@@ -1,4 +1,4 @@
-import type { Bean, Brew, BrewParams, Config, CreateBean, CreatedInvite, FlavourTag, Friend, FriendInvite, Friends, LabelScan, Me, Passport, Profile, Roaster, RoasterScope, SharedBrew, VoiceParse } from "./types";
+import type { Bean, Brew, BrewParams, Config, CreateBean, CreatedInvite, FlavourTag, UpdateBean, Friend, FriendInvite, Friends, LabelScan, Me, Passport, Profile, Roaster, RoasterScope, SharedBrew, VoiceParse } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -41,6 +41,7 @@ export const api = {
   profile: () => request<Profile>("/profile"),
   beans: () => request<Bean[]>("/beans"),
   createBean: (b: CreateBean) => request<Bean>("/beans", json("POST", b)),
+  updateBean: (id: string, patch: UpdateBean) => request<Bean>(`/beans/${id}`, json("PATCH", patch)),
   archiveBean: (id: string, archived: boolean) => request<Bean>(`/beans/${id}`, json("PATCH", { archived, archivePromptAnswered: true })),
   /** Answering the archive prompt without archiving: asked once, then never again for that bag. */
   keepBean: (id: string) => request<Bean>(`/beans/${id}`, json("PATCH", { archivePromptAnswered: true })),

@@ -69,10 +69,42 @@ public static class BeansEndpoints
         {
             var bean = await db.Beans.SingleOrDefaultAsync(b => b.Id == id && b.UserId == me.Id, ct);
             if (bean is null) return Results.NotFound();
+
+            if (req.Name is not null)
+            {
+                var name = req.Name.Trim();
+                if (name.Length == 0)
+                    return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = ["Name is required."] });
+                bean.Name = name;
+            }
+            if (req.Origin is not null) bean.Origin = Clean(req.Origin);
+            if (req.Process is not null) bean.Process = Clean(req.Process);
+            if (req.Producer is not null) bean.Producer = Clean(req.Producer);
+            if (req.Varietal is not null) bean.Varietal = Clean(req.Varietal);
+            if (req.Altitude is not null) bean.Altitude = Clean(req.Altitude);
+            if (req.RoastLevel is not null) bean.RoastLevel = Clean(req.RoastLevel);
+            if (req.DeclaredNotes is not null)
+                bean.DeclaredNotes = req.DeclaredNotes.Select(n => n.Trim()).Where(n => n.Length > 0).Distinct().ToList();
+            // A date and a weight are values, so clearing one needs saying rather than a magic number.
+            if (req.RoastDate is { } roastDate) bean.RoastDate = roastDate;
+            if (req.ClearRoastDate is true) bean.RoastDate = null;
+            if (req.WeightG is { } weight) bean.WeightG = weight is > 0 and <= 100_000 ? weight : bean.WeightG;
+            if (req.ClearWeight is true) bean.WeightG = null;
+
             if (req.Archived is { } archived) bean.Archived = archived;
             // Asked once, then never again for that bag, whichever way the user answered.
             if (req.ArchivePromptAnswered is true && bean.ArchivePromptedAt is null) bean.ArchivePromptedAt = clock.GetUtcNow();
-            await db.SaveChangesAsync(ct);
+
+            // A corrected roaster name has to re-point the bag, or the map keeps the old one.
+            if (req.Roaster is not null && RoasterName.Display(req.Roaster) != bean.Roaster)
+            {
+                bean.Roaster = RoasterName.Display(req.Roaster);
+                await RoasterLinker.LinkAndSaveAsync(db, bean, clock, ct);
+            }
+            else
+            {
+                await db.SaveChangesAsync(ct);
+            }
             return Results.Ok((await Project(db, [bean], clock, ct))[0]);
         });
 
