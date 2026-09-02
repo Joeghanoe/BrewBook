@@ -4,6 +4,7 @@ using Brewbook.Api.Data;
 using Brewbook.Api.Features.Beans;
 using Brewbook.Api.Features.Brews;
 using Brewbook.Api.Features.Labels;
+using Brewbook.Api.Features.Profile;
 using Brewbook.Api.Features.Users;
 using Brewbook.Api.Features.Voice;
 using Brewbook.Api.Integrations.Gemini;
@@ -62,7 +63,7 @@ app.UseStatusCodePages();
 app.MapHealthChecks("/health");
 
 var api = app.MapGroup("/api/v1");
-api.MapUsers().MapBeans().MapBrews().MapVoice();
+api.MapUsers().MapBeans().MapBrews().MapVoice().MapProfile();
 
 // Only /api/* is user-facing; everything under it needs an identity from the proxy.
 app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"), branch => branch.UseMiddleware<ProxyIdentityMiddleware>());

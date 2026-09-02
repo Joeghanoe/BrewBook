@@ -3,7 +3,7 @@ import { api, ApiError } from "../api/client";
 import type { Bean, Brew, BrewParams, FlavourTag, Me } from "../api/types";
 import { sameParams } from "../lib/format";
 
-export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform";
+export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "profile";
 export type Sheet = null | "adjust" | "switcher";
 
 export interface Toast { msg: string; undo?: () => void }

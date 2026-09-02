@@ -49,6 +49,20 @@ export const describeDelta = (p: BrewParams, prev: BrewParams | null): string =>
   return parts.length ? parts.join(" · ") : "same as last";
 };
 
+/** "−0.5 FINER" · "+10 G" · "−1°C" · "SAME" — how a preferred value sits against the overall median. */
+export const describePreference = (key: keyof BrewParams, v: number, b: number): string => {
+  if (v === b) return "SAME";
+  const sign = v < b ? "−" : "+";
+  const d = Math.abs(v - b);
+  switch (key) {
+    case "grind": return `${sign}${d.toFixed(1)} ${v < b ? "FINER" : "COARSER"}`;
+    case "doseG": return `${sign}${d.toFixed(1)} G`;
+    case "yieldG": return `${sign}${num(d)} G`;
+    case "tempC": return `${sign}${num(d)}°C`;
+    case "blooms": return `${sign}${d} ${d === 1 ? "BLOOM" : "BLOOMS"}`;
+  }
+};
+
 export const describeFull = (p: BrewParams, durationMs: number) =>
   `${p.doseG.toFixed(1)} g → ${num(p.yieldG)} g · ${num(p.tempC)}°C · grind ${p.grind.toFixed(1)} · ${p.blooms} blooms · ${fmtTime(durationMs)}`;
 

@@ -69,6 +69,65 @@ export interface Brew {
   brewedAt: string;
 }
 
+// Taste profile, derived from brews and tags on every read.
+export interface ProfileFlavour {
+  flavour: string;
+  category: string;
+  likes: number;
+  dislikes: number;
+  lastTaggedAt: string;
+}
+export interface ProfileCategory {
+  category: string;
+  likes: number;
+  dislikes: number;
+}
+export interface ProfileDefect {
+  defect: string;
+  count: number;
+}
+export interface ProfileBean {
+  beanId: string;
+  name: string;
+  roaster: string | null;
+  archived: boolean;
+  brews: number;
+  avgRating: number | null;
+  bestBrewId: string | null;
+}
+export interface ProfileRoaster {
+  roaster: string;
+  bags: number;
+  brews: number;
+  avgRating: number | null;
+  topFlavours: string[];
+}
+export interface Profile {
+  email: string;
+  displayName: string | null;
+  counts: { brews: number; bags: number; flavours: number; daysLogging: number };
+  flavours: {
+    leaves: ProfileFlavour[];
+    /** Every wheel category in wheel order, zeros included. */
+    categories: ProfileCategory[];
+    topLiked: ProfileFlavour[];
+    topDisliked: ProfileFlavour[];
+  };
+  preferences: {
+    /** Medians over brews rated 4+; null until one exists. */
+    preferred: BrewParams | null;
+    /** Medians over every brew; null until one exists. */
+    overall: BrewParams | null;
+    ratedBrews: number;
+    likedBrews: number;
+    typicalDurationMs: number | null;
+    defects: ProfileDefect[];
+  };
+  beans: ProfileBean[];
+  topBeans: ProfileBean[];
+  roasters: ProfileRoaster[];
+}
+
 export interface VoiceParse {
   applied: boolean;
   transcript: string;
