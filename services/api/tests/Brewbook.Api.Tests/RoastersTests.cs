@@ -35,12 +35,23 @@ public class RoasterNameTests
 
 public class GooglePlacesLocatorTests
 {
+    [Theory]
+    [InlineData("NL", "NL")]
+    [InlineData(" nl ", "NL")]
+    [InlineData("Netherlands", null)]   // a country name is not a CLDR region
+    [InlineData("", null)]
+    [InlineData(null, null)]
+    public void Only_a_two_letter_region_is_sent_as_one(string? raw, string? expected)
+        => Assert.Equal(expected, GooglePlacesLocator.Region(raw));
+
     [Fact]
     public void Query_steers_towards_roasters_and_appends_the_hint()
     {
-        Assert.Equal("Symple coffee roaster, Colombia", GooglePlacesLocator.BuildQuery("Symple", "Colombia"));
-        Assert.Equal("Tim Wendelboe coffee roaster", GooglePlacesLocator.BuildQuery(" Tim Wendelboe ", null));
-        Assert.Equal("Square Mile Coffee Roasters", GooglePlacesLocator.BuildQuery("Square Mile Coffee Roasters", " "));
+        // The roaster's name and nothing else. Where the beans grew says nothing about where
+        // they were roasted, and a bean's origin used to drag every search to the growing country.
+        Assert.Equal("Symple coffee roaster", GooglePlacesLocator.BuildQuery("Symple"));
+        Assert.Equal("Tim Wendelboe coffee roaster", GooglePlacesLocator.BuildQuery(" Tim Wendelboe "));
+        Assert.Equal("Square Mile Coffee Roasters", GooglePlacesLocator.BuildQuery("Square Mile Coffee Roasters"));
     }
 
     [Fact]
@@ -75,7 +86,7 @@ public class RoasterLinkerTests
     public async Task Unavailable_provider_leaves_the_row_untouched()
     {
         var row = new Roaster { Id = Guid.NewGuid(), Name = "Symple", NormalisedName = "symple" };
-        var changed = await RoasterLinker.ResolveAsync(row, "Symple", null, new UnconfiguredRoasterLocator(), Clock, CancellationToken.None);
+        var changed = await RoasterLinker.ResolveAsync(row, "Symple", new UnconfiguredRoasterLocator(), Clock, CancellationToken.None);
         Assert.False(changed);
         Assert.Null(row.ResolvedAt);
         Assert.False(row.Located);
@@ -85,7 +96,7 @@ public class RoasterLinkerTests
     public async Task Not_found_is_remembered_so_it_is_not_retried()
     {
         var row = new Roaster { Id = Guid.NewGuid(), Name = "Symple", NormalisedName = "symple" };
-        var changed = await RoasterLinker.ResolveAsync(row, "Symple", null, new FakeLocator(LocateResult.NotFound), Clock, CancellationToken.None);
+        var changed = await RoasterLinker.ResolveAsync(row, "Symple", new FakeLocator(LocateResult.NotFound), Clock, CancellationToken.None);
         Assert.True(changed);
         Assert.NotNull(row.ResolvedAt);
         Assert.False(row.Located);
@@ -96,7 +107,7 @@ public class RoasterLinkerTests
     {
         var row = new Roaster { Id = Guid.NewGuid(), Name = "Symple", NormalisedName = "symple" };
         var place = new RoasterPlace("ChIJ1", "Symple Coffee", "Bogotá", 4.65, -74.05, null);
-        await RoasterLinker.ResolveAsync(row, "Symple", "Colombia", new FakeLocator(new LocateResult(LocateStatus.Located, place)), Clock, CancellationToken.None);
+        await RoasterLinker.ResolveAsync(row, "Symple", new FakeLocator(new LocateResult(LocateStatus.Located, place)), Clock, CancellationToken.None);
         Assert.True(row.Located);
         Assert.Equal("ChIJ1", row.GooglePlaceId);
         Assert.Equal("Bogotá", row.FormattedAddress);
@@ -279,8 +290,9 @@ public class RoastersApiTests
         Assert.Equal("Bogotá, Colombia", first.Address);
         Assert.Equal(4.65, first.Lat);
         Assert.Equal("https://symple.co", first.Website);
-        // Asked by name, with the bag's origin country as the hint.
-        Assert.Equal(("Symple", (string?)"Colombia"), Assert.Single(locator.Queries));
+        // Asked by name and nothing else: the bag's origin is where the coffee grew, not where
+        // it was roasted, and it used to drag the search to the growing country.
+        Assert.Equal("Symple", Assert.Single(locator.Queries));
 
         // Second list call: the answer is on the row, the locator is not asked again.
         await ada.GetFromJsonAsync<List<RoasterResponse>>("/api/v1/roasters");
@@ -292,7 +304,7 @@ public class RoastersApiTests
         var moved = (await movedRes.Content.ReadFromJsonAsync<RoasterResponse>())!;
         Assert.Equal("Medellín, Colombia", moved.Address);
         Assert.Equal(6.25, moved.Lat);
-        Assert.Equal(("Symple roastery Medellín", (string?)null), locator.Queries.Last());
+        Assert.Equal("Symple roastery Medellín", locator.Queries.Last());
 
         // Bob never logged this roaster: to him it does not exist.
         Assert.Equal(HttpStatusCode.NotFound, (await bob.PostAsJsonAsync($"/api/v1/roasters/{bean.RoasterId}/relocate", new RelocateRoasterRequest(null))).StatusCode);
@@ -319,12 +331,12 @@ public class RoastersApiTests
 file sealed class FakeLocator(LocateResult next) : IRoasterLocator
 {
     public LocateResult Next { get; set; } = next;
-    public List<(string query, string? hint)> Queries { get; } = [];
+    public List<string> Queries { get; } = [];
     public bool Configured => true;
 
-    public Task<LocateResult> LocateAsync(string query, string? hint, CancellationToken ct)
+    public Task<LocateResult> LocateAsync(string query, CancellationToken ct)
     {
-        Queries.Add((query, hint));
+        Queries.Add(query);
         return Task.FromResult(Next);
     }
 }

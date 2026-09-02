@@ -89,6 +89,8 @@ local (`VoiceCommandParser`), whatever produced the transcript.
 
 ## Vocabulary
 
+- A roaster is a *place near the drinker*; a bean's `origin` is where the coffee grew. The two are
+  unrelated, and origin must never be used to locate a roaster.
 - A `bean` (or `bag`) is one bag of coffee: name, roaster, origin, process, roast date, declared
   notes. Archiving hides it from the switcher; it keeps its brews.
 - The `ticket` is the set of five params the next brew will use, plus a `base` (the previous

@@ -23,13 +23,12 @@ public interface IRoasterLocator
 {
     bool Configured { get; }
     /// <param name="query">The roaster's name, or whatever the user typed to correct a wrong match.</param>
-    /// <param name="hint">Optional context such as the bean's origin country; appended to the search text.</param>
-    Task<LocateResult> LocateAsync(string query, string? hint, CancellationToken ct);
+    Task<LocateResult> LocateAsync(string query, CancellationToken ct);
 }
 
 /// <summary>Used when no server key is set. Says so; every roaster stays "not located".</summary>
 public sealed class UnconfiguredRoasterLocator : IRoasterLocator
 {
     public bool Configured => false;
-    public Task<LocateResult> LocateAsync(string query, string? hint, CancellationToken ct) => Task.FromResult(LocateResult.Unavailable);
+    public Task<LocateResult> LocateAsync(string query, CancellationToken ct) => Task.FromResult(LocateResult.Unavailable);
 }

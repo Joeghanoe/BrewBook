@@ -12,6 +12,12 @@ public sealed class GoogleMapsOptions
 
     public string? ServerKey { get; set; }
     public string? BrowserKey { get; set; }
+    /// <summary>
+    /// Two-letter CLDR region the drinker is in, e.g. "NL". Biases the roaster search towards
+    /// home: a specialty roaster is near the person drinking, not near where the coffee grew.
+    /// Unset means no bias, and Places ranks globally.
+    /// </summary>
+    public string? RegionCode { get; set; }
     public string PlacesEndpoint { get; set; } = "https://places.googleapis.com/v1";
     public int TimeoutSeconds { get; set; } = 10;
 

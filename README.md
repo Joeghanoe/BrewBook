@@ -123,10 +123,16 @@ The browser key is fetched from `/api/v1/config` at runtime; nothing is baked in
 |---|---|
 | `GOOGLE_MAPS_SERVER_KEY` | Roasters are located with Places API (New) the first time the map asks for them; the answer is cached on the roaster. Without it every roaster reports itself as not located and `POST /api/v1/roasters/{id}/relocate` answers 503. |
 | `GOOGLE_MAPS_BROWSER_KEY` | Handed to the SPA through `/api/v1/config`. Without it the Roasters screen shows the list only. |
+| `GoogleMaps__RegionCode` | Two-letter CLDR region (`NL`, `GB`, `US`) biasing the roaster search towards where you drink. Unset means Places ranks globally. |
 
 Roasters are shared rows keyed by normalised name (trim, casefold, collapse spaces); ratings and
 flavour tags stay per user. The location comes from Google or from nobody: an unconfigured or
 failed lookup leaves the roaster unlocated rather than guessing.
+
+The search is the roaster's name and nothing else. A bag's origin is where the coffee *grew*,
+which says nothing about where it was roasted — using it as a hint sent every European roaster to
+the growing country. `GoogleMaps__RegionCode` biases towards home instead, and a wrong match is
+always the user's to correct with **WRONG PLACE?**.
 
 ## Friends, invitations and shared recipes (off by default)
 

@@ -62,6 +62,10 @@ export default defineRailway(() => {
       // Optional. One Gemini key turns on both label reading and server-side voice transcription;
       // when unset the app says so and falls back (manual bag entry, browser speech recogniser).
       // Set up per README.md → Google Cloud Console.
+      // Where the drinker is, as a two-letter CLDR region. Biases the roaster search towards home:
+      // a specialty roaster is near the person drinking, not near where the coffee grew. Unset
+      // means Places ranks globally, which is rarely what a personal log wants.
+      GoogleMaps__RegionCode: "NL",
       // Optional. Two Maps Platform keys for the roaster map: the server key (Places API only)
       // geocodes roaster names from the API; the browser key (Maps JavaScript API, restricted to
       // the proxy domain as referrer) is handed to the SPA. Without them roasters stay unlocated

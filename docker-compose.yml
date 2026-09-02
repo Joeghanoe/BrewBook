@@ -23,6 +23,7 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GOOGLE_MAPS_SERVER_KEY: ${GOOGLE_MAPS_SERVER_KEY:-}
       GOOGLE_MAPS_BROWSER_KEY: ${GOOGLE_MAPS_BROWSER_KEY:-}
+      GoogleMaps__RegionCode: ${GoogleMaps__RegionCode:-}
       Features__Friends: ${Features__Friends:-false}
       CLOUDFLARE_EMAIL_TOKEN: ${CLOUDFLARE_EMAIL_TOKEN:-}
       Email__AccountId: ${Email__AccountId:-}

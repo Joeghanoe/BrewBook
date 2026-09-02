@@ -15,15 +15,17 @@ public sealed class GooglePlacesLocator(HttpClient http, IOptions<GoogleMapsOpti
 
     public bool Configured => true;
 
-    public async Task<LocateResult> LocateAsync(string query, string? hint, CancellationToken ct)
+    public async Task<LocateResult> LocateAsync(string query, CancellationToken ct)
     {
-        var text = BuildQuery(query, hint);
+        var text = BuildQuery(query);
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, $"{_opt.PlacesEndpoint.TrimEnd('/')}/places:searchText");
             req.Headers.Add("X-Goog-Api-Key", _opt.ServerKey);
             req.Headers.Add("X-Goog-FieldMask", FieldMask);
-            req.Content = JsonContent.Create(new { textQuery = text, pageSize = 1 }, options: Json);
+            // regionCode biases ranking towards the drinker's country without excluding anywhere else,
+            // which is what a roaster search wants: mostly local, occasionally imported by post.
+            req.Content = JsonContent.Create(new { textQuery = text, pageSize = 1, regionCode = Region(_opt.RegionCode) }, options: Json);
 
             using var res = await http.SendAsync(req, ct);
             if (!res.IsSuccessStatusCode)
@@ -49,12 +51,19 @@ public sealed class GooglePlacesLocator(HttpClient http, IOptions<GoogleMapsOpti
         }
     }
 
-    /// <summary>"Symple coffee roaster, Colombia" — the word "roaster" steers the ranking away from cafés with the same name.</summary>
-    public static string BuildQuery(string query, string? hint)
+    /// <summary>"Symple coffee roaster" — the word "roaster" steers the ranking away from cafés with the same name.</summary>
+    public static string BuildQuery(string query)
     {
         var q = query.Trim();
         if (!q.Contains("roast", StringComparison.OrdinalIgnoreCase)) q += " coffee roaster";
-        return string.IsNullOrWhiteSpace(hint) ? q : $"{q}, {hint.Trim()}";
+        return q;
+    }
+
+    /// <summary>A CLDR region is two letters. Anything else is not one, and is dropped rather than sent.</summary>
+    public static string? Region(string? raw)
+    {
+        var r = raw?.Trim();
+        return r is { Length: 2 } && r.All(char.IsAsciiLetter) ? r.ToUpperInvariant() : null;
     }
 
     /// <summary>Pure mapping from the API's JSON shape; tested without a network.</summary>

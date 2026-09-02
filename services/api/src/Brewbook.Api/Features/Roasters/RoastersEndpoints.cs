@@ -96,8 +96,7 @@ public static class RoastersEndpoints
             {
                 if (!locator.Configured || resolves >= MaxResolvesPerRequest) break;
                 resolves++;
-                var hint = OriginHint(groups.TryGetValue(roaster.Id, out var ps) ? ps.SelectMany(p => p.Bags) : []);
-                await RoasterLinker.ResolveAsync(roaster, roaster.Name, hint, locator, clock, ct);
+                await RoasterLinker.ResolveAsync(roaster, roaster.Name, locator, clock, ct);
             }
             if (resolves > 0) await db.SaveChangesAsync(ct);
 
@@ -169,10 +168,8 @@ public static class RoastersEndpoints
 
             var query = string.IsNullOrWhiteSpace(req?.Query) ? roaster.Name : req.Query.Trim();
             if (query.Length > 200) query = query[..200];
-            // A user-typed query is the whole intent; only the name-based retry gets the origin hint.
-            var hint = string.IsNullOrWhiteSpace(req?.Query) ? OriginHint(bags) : null;
 
-            var changed = await RoasterLinker.ResolveAsync(roaster, query, hint, locator, clock, ct);
+            var changed = await RoasterLinker.ResolveAsync(roaster, query, locator, clock, ct);
             if (!changed) return Results.Problem("Roaster lookup is unavailable right now.", statusCode: 503);
             await db.SaveChangesAsync(ct);
 
@@ -195,12 +192,4 @@ public static class RoastersEndpoints
         _ => Scope.Mine,
     };
 
-    /// <summary>The country from "Huila, Colombia": the most common last segment across the roaster's bags, when there is one.</summary>
-    public static string? OriginHint(IEnumerable<Bean> bags) => bags
-        .Select(b => b.Origin?.Split(',').Last().Trim())
-        .Where(c => !string.IsNullOrEmpty(c))
-        .GroupBy(c => c!, StringComparer.OrdinalIgnoreCase)
-        .OrderByDescending(gr => gr.Count())
-        .Select(gr => gr.Key)
-        .FirstOrDefault();
 }
