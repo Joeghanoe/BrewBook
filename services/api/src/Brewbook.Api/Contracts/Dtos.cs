@@ -6,7 +6,10 @@ namespace Brewbook.Api.Contracts;
 
 public sealed record FeatureFlags(bool LabelReading, bool SpeechTranscription);
 
-public sealed record MeResponse(Guid Id, string Email, string? DisplayName, FeatureFlags Features);
+public sealed record MeResponse(Guid Id, string Email, string? DisplayName, FeatureFlags Features, DateTimeOffset? OnboardedAt)
+{
+    public static MeResponse From(User u, FeatureFlags features) => new(u.Id, u.Email, u.DisplayName, features, u.OnboardedAt);
+}
 
 public sealed record BrewParamsDto(decimal Grind, decimal DoseG, decimal YieldG, decimal TempC, int Blooms)
 {

@@ -36,6 +36,7 @@ const json = (method: string, body: unknown): RequestInit => ({
 
 export const api = {
   me: () => request<Me>("/me"),
+  markOnboarded: () => request<Me>("/me/onboarded", { method: "POST" }),
   beans: () => request<Bean[]>("/beans"),
   createBean: (b: CreateBean) => request<Bean>("/beans", json("POST", b)),
   archiveBean: (id: string, archived: boolean) => request<Bean>(`/beans/${id}`, json("PATCH", { archived })),
