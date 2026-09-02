@@ -1,4 +1,4 @@
-import type { Bean, Brew, BrewParams, Config, CreateBean, FlavourTag, Friend, FriendInvite, Friends, LabelScan, Me, Passport, Profile, Roaster, RoasterScope, SharedBrew, VoiceParse } from "./types";
+import type { Bean, Brew, BrewParams, Config, CreateBean, CreatedInvite, FlavourTag, Friend, FriendInvite, Friends, LabelScan, Me, Passport, Profile, Roaster, RoasterScope, SharedBrew, VoiceParse } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -74,7 +74,7 @@ export const api = {
   recipes: (roasterId: string, userId: string) => request<SharedBrew[]>(`/roasters/${roasterId}/recipes?userId=${userId}`),
   wishRoaster: (id: string, wanted: boolean) => request<void>(`/roasters/${id}/wish`, { method: wanted ? "PUT" : "DELETE" }),
   friends: () => request<Friends>("/friends"),
-  createInvite: (email: string | null) => request<FriendInvite>("/friends/invites", json("POST", { email })),
+  createInvite: (email: string | null) => request<CreatedInvite>("/friends/invites", json("POST", { email })),
   readInvite: (token: string) => request<FriendInvite>(`/friends/invites/${encodeURIComponent(token)}`),
   revokeInvite: (token: string) => request<void>(`/friends/invites/${encodeURIComponent(token)}`, { method: "DELETE" }),
   acceptInvite: (token: string) => request<Friend>(`/friends/invites/${encodeURIComponent(token)}/accept`, { method: "POST" }),

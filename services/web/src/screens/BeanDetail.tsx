@@ -61,7 +61,7 @@ export const BeanDetail = () => {
                   <div className="acts">
                     <button className="act" onClick={() => { s.loadParams(h.params); s.setScreen("home"); s.showToast("Loaded onto the brew ticket"); }}>BREW THIS AGAIN →</button>
                     <button className="act" onClick={() => s.openWheel(h)}>TAG FLAVOURS →</button>
-                    {h.rating > 0 && (
+                    {s.hasFriends && h.rating > 0 && (
                       <button className={"act" + (h.isPrivate ? " quiet" : " on")} onClick={() => void s.setBrewPrivacy(h.id, !h.isPrivate)}>
                         {h.isPrivate ? "PRIVATE" : "SHARED WITH FRIENDS"}
                       </button>

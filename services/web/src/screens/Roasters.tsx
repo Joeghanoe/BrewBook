@@ -62,7 +62,7 @@ export const Roasters = () => {
         <span className="link" style={{ color: "rgba(233,214,174,.5)" }}>{roasters ? `${roasters.length} ON RECORD` : ""}</span>
       </div>
 
-      <ScopeSwitch />
+      {s.hasFriends && <ScopeSwitch />}
 
       <div className="filter">
         <Rule label="YOUR PALATE" right={selected.length ? `${selected.length} ON` : "ALL ROASTERS"} />

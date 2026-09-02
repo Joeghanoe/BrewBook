@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Brewbook.Api.Auth;
 using Brewbook.Api.Data;
 using Brewbook.Api.Features.Achievements;
+using Brewbook.Api.Features;
 using Brewbook.Api.Features.Beans;
 using Brewbook.Api.Features.Brews;
 using Brewbook.Api.Features.Friends;
@@ -10,6 +11,7 @@ using Brewbook.Api.Features.Profile;
 using Brewbook.Api.Features.Roasters;
 using Brewbook.Api.Features.Users;
 using Brewbook.Api.Features.Voice;
+using Brewbook.Api.Integrations.CloudflareEmail;
 using Brewbook.Api.Integrations.Gemini;
 using Brewbook.Api.Integrations.GooglePlaces;
 using Microsoft.EntityFrameworkCore;
@@ -23,11 +25,18 @@ if (builder.Configuration["PORT"] is { Length: > 0 } port)
 // ---- Composition root ------------------------------------------------------
 
 builder.Services.Configure<ProxyIdentityOptions>(builder.Configuration.GetSection(ProxyIdentityOptions.SectionName));
+builder.Services.Configure<FeatureOptions>(builder.Configuration.GetSection(FeatureOptions.SectionName));
 builder.Services.Configure<GeminiOptions>(o =>
 {
     builder.Configuration.GetSection(GeminiOptions.SectionName).Bind(o);
     // The key is an environment secret (Railway), never appsettings.
     o.ApiKey = builder.Configuration["GEMINI_API_KEY"] ?? o.ApiKey;
+});
+builder.Services.Configure<CloudflareEmailOptions>(o =>
+{
+    builder.Configuration.GetSection(CloudflareEmailOptions.SectionName).Bind(o);
+    // The token is an environment secret (Railway), never appsettings.
+    o.ApiToken = builder.Configuration["CLOUDFLARE_EMAIL_TOKEN"] ?? o.ApiToken;
 });
 builder.Services.Configure<GoogleMapsOptions>(o =>
 {
@@ -44,6 +53,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<AchievementService>();
+builder.Services.AddScoped<Capabilities>();
 
 var connectionString = ConnectionStrings.Resolve(builder.Configuration);
 builder.Services.AddDbContext<BrewbookDbContext>(o => o.UseNpgsql(connectionString));
@@ -64,6 +74,18 @@ else
     builder.Services.AddSingleton<ISpeechTranscriber, UnconfiguredSpeechTranscriber>();
 }
 
+var features = new FeatureOptions();
+builder.Configuration.GetSection(FeatureOptions.SectionName).Bind(features);
+
+var email = new CloudflareEmailOptions();
+builder.Configuration.GetSection(CloudflareEmailOptions.SectionName).Bind(email);
+email.ApiToken = builder.Configuration["CLOUDFLARE_EMAIL_TOKEN"] ?? email.ApiToken;
+// No friends, no invitations, so nothing to post either.
+if (features.Friends && email.Configured)
+    builder.Services.AddHttpClient<IInviteMailer, CloudflareInviteMailer>(c => c.Timeout = TimeSpan.FromSeconds(email.TimeoutSeconds));
+else
+    builder.Services.AddSingleton<IInviteMailer, UnconfiguredInviteMailer>();
+
 var maps = new GoogleMapsOptions();
 builder.Configuration.GetSection(GoogleMapsOptions.SectionName).Bind(maps);
 maps.ServerKey = builder.Configuration["GOOGLE_MAPS_SERVER_KEY"] ?? maps.ServerKey;
@@ -83,7 +105,9 @@ app.UseStatusCodePages();
 app.MapHealthChecks("/health");
 
 var api = app.MapGroup("/api/v1");
-api.MapUsers().MapBeans().MapBrews().MapVoice().MapProfile().MapRoasters().MapAchievements().MapFriends();
+api.MapUsers().MapBeans().MapBrews().MapVoice().MapProfile().MapRoasters().MapAchievements();
+// Unmapped rather than guarded: a disabled capability has no routes at all.
+if (features.Friends) api.MapFriends();
 
 // Only /api/* is user-facing; everything under it needs an identity from the proxy.
 app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"), branch => branch.UseMiddleware<ProxyIdentityMiddleware>());

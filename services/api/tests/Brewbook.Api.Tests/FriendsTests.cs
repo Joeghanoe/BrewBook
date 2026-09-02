@@ -13,11 +13,11 @@ public class FriendsTests
     [Fact]
     public async Task A_link_makes_a_friendship_only_once_it_is_accepted()
     {
-        using var f = new ApiFactory();
+        using var f = ApiFactory.WithFriends();
         var sam = f.ClientFor("sam@example.com");
         var jo = f.ClientFor("jo@example.com");
 
-        var invite = await Post<FriendInviteDto>(sam, "/api/v1/friends/invites", new CreateFriendInviteRequest(null));
+        var invite = (await Post<CreatedInviteResponse>(sam, "/api/v1/friends/invites", new CreateFriendInviteRequest(null))).Invite;
 
         // Before acceptance: nobody is on anybody's map.
         Assert.Empty((await Get<FriendsResponse>(sam, "/api/v1/friends")).Friends);
@@ -34,13 +34,13 @@ public class FriendsTests
     [Fact]
     public async Task An_invitation_can_be_read_before_it_is_accepted_and_nothing_else_can()
     {
-        using var f = new ApiFactory();
+        using var f = ApiFactory.WithFriends();
         var sam = f.ClientFor("sam@example.com");
         var jo = f.ClientFor("jo@example.com");
         await Bean(sam, "El Carmen", "Symple");
         await Rated(sam, "El Carmen", 5);
 
-        var invite = await Post<FriendInviteDto>(sam, "/api/v1/friends/invites", new CreateFriendInviteRequest(null));
+        var invite = (await Post<CreatedInviteResponse>(sam, "/api/v1/friends/invites", new CreateFriendInviteRequest(null))).Invite;
 
         var preview = await Get<FriendInviteDto>(jo, $"/api/v1/friends/invites/{invite.Token}");
         Assert.Equal("sam", preview.FromName);
@@ -52,9 +52,9 @@ public class FriendsTests
     [Fact]
     public async Task An_invitation_is_used_once()
     {
-        using var f = new ApiFactory();
+        using var f = ApiFactory.WithFriends();
         var sam = f.ClientFor("sam@example.com");
-        var invite = await Post<FriendInviteDto>(sam, "/api/v1/friends/invites", new CreateFriendInviteRequest(null));
+        var invite = (await Post<CreatedInviteResponse>(sam, "/api/v1/friends/invites", new CreateFriendInviteRequest(null))).Invite;
 
         Assert.Equal(HttpStatusCode.OK, (await f.ClientFor("jo@example.com").PostAsync($"/api/v1/friends/invites/{invite.Token}/accept", null)).StatusCode);
         Assert.Equal(HttpStatusCode.Gone, (await f.ClientFor("kim@example.com").PostAsync($"/api/v1/friends/invites/{invite.Token}/accept", null)).StatusCode);
@@ -63,9 +63,9 @@ public class FriendsTests
     [Fact]
     public async Task An_addressed_invitation_only_opens_for_that_address()
     {
-        using var f = new ApiFactory();
+        using var f = ApiFactory.WithFriends();
         var sam = f.ClientFor("sam@example.com");
-        var invite = await Post<FriendInviteDto>(sam, "/api/v1/friends/invites", new CreateFriendInviteRequest("jo@example.com"));
+        var invite = (await Post<CreatedInviteResponse>(sam, "/api/v1/friends/invites", new CreateFriendInviteRequest("jo@example.com"))).Invite;
 
         Assert.Equal(HttpStatusCode.Forbidden, (await f.ClientFor("kim@example.com").PostAsync($"/api/v1/friends/invites/{invite.Token}/accept", null)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await f.ClientFor("jo@example.com").PostAsync($"/api/v1/friends/invites/{invite.Token}/accept", null)).StatusCode);
@@ -74,9 +74,9 @@ public class FriendsTests
     [Fact]
     public async Task An_addressed_invitation_is_waiting_for_the_person_it_names()
     {
-        using var f = new ApiFactory();
+        using var f = ApiFactory.WithFriends();
         var sam = f.ClientFor("sam@example.com");
-        await Post<FriendInviteDto>(sam, "/api/v1/friends/invites", new CreateFriendInviteRequest("JO@example.com"));
+        await Post<CreatedInviteResponse>(sam, "/api/v1/friends/invites", new CreateFriendInviteRequest("JO@example.com"));
 
         var jo = await Get<FriendsResponse>(f.ClientFor("jo@example.com"), "/api/v1/friends");
         Assert.Equal("sam", Assert.Single(jo.Received).FromName);
@@ -86,16 +86,16 @@ public class FriendsTests
     [Fact]
     public async Task You_cannot_accept_your_own_invitation()
     {
-        using var f = new ApiFactory();
+        using var f = ApiFactory.WithFriends();
         var sam = f.ClientFor("sam@example.com");
-        var invite = await Post<FriendInviteDto>(sam, "/api/v1/friends/invites", new CreateFriendInviteRequest(null));
+        var invite = (await Post<CreatedInviteResponse>(sam, "/api/v1/friends/invites", new CreateFriendInviteRequest(null))).Invite;
         Assert.Equal(HttpStatusCode.Conflict, (await sam.PostAsync($"/api/v1/friends/invites/{invite.Token}/accept", null)).StatusCode);
     }
 
     [Fact]
     public async Task A_friends_roaster_lands_on_the_map_with_their_rating_beside_the_users_own()
     {
-        using var f = new ApiFactory();
+        using var f = ApiFactory.WithFriends();
         var sam = f.ClientFor("sam@example.com");
         var jo = f.ClientFor("jo@example.com");
         await Befriend(f, sam, jo);
@@ -126,7 +126,7 @@ public class FriendsTests
     [Fact]
     public async Task A_friend_shares_what_they_rated_and_nothing_else()
     {
-        using var f = new ApiFactory();
+        using var f = ApiFactory.WithFriends();
         var sam = f.ClientFor("sam@example.com");
         var jo = f.ClientFor("jo@example.com");
         await Befriend(f, sam, jo);
@@ -152,7 +152,7 @@ public class FriendsTests
     [Fact]
     public async Task A_stranger_reads_nothing()
     {
-        using var f = new ApiFactory();
+        using var f = ApiFactory.WithFriends();
         var sam = f.ClientFor("sam@example.com");
         var kim = f.ClientFor("kim@example.com");
         await Bean(sam, "El Carmen", "Symple");
@@ -167,7 +167,7 @@ public class FriendsTests
     [Fact]
     public async Task Rated_brews_are_shared_by_default_and_the_default_can_be_flipped()
     {
-        using var f = new ApiFactory();
+        using var f = ApiFactory.WithFriends();
         var sam = f.ClientFor("sam@example.com");
         await Bean(sam, "El Carmen", "Symple");
         Assert.False((await Rated(sam, "El Carmen", 4)).IsPrivate);
@@ -180,7 +180,7 @@ public class FriendsTests
     [Fact]
     public async Task A_wished_roaster_sits_on_the_map_and_a_bag_from_it_clears_the_pin()
     {
-        using var f = new ApiFactory();
+        using var f = ApiFactory.WithFriends();
         var sam = f.ClientFor("sam@example.com");
         var jo = f.ClientFor("jo@example.com");
         await Befriend(f, sam, jo);
@@ -203,7 +203,7 @@ public class FriendsTests
     [Fact]
     public async Task The_palate_filter_reaches_across_friends()
     {
-        using var f = new ApiFactory();
+        using var f = ApiFactory.WithFriends();
         var sam = f.ClientFor("sam@example.com");
         var jo = f.ClientFor("jo@example.com");
         await Befriend(f, sam, jo);
@@ -219,7 +219,7 @@ public class FriendsTests
 
     private static async Task Befriend(ApiFactory f, HttpClient a, HttpClient b)
     {
-        var invite = await Post<FriendInviteDto>(a, "/api/v1/friends/invites", new CreateFriendInviteRequest(null));
+        var invite = (await Post<CreatedInviteResponse>(a, "/api/v1/friends/invites", new CreateFriendInviteRequest(null))).Invite;
         (await b.PostAsync($"/api/v1/friends/invites/{invite.Token}/accept", null)).EnsureSuccessStatusCode();
     }
 

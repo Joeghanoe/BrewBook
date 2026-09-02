@@ -23,6 +23,11 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GOOGLE_MAPS_SERVER_KEY: ${GOOGLE_MAPS_SERVER_KEY:-}
       GOOGLE_MAPS_BROWSER_KEY: ${GOOGLE_MAPS_BROWSER_KEY:-}
+      Features__Friends: ${Features__Friends:-false}
+      CLOUDFLARE_EMAIL_TOKEN: ${CLOUDFLARE_EMAIL_TOKEN:-}
+      Email__AccountId: ${Email__AccountId:-}
+      Email__From: ${Email__From:-}
+      Email__PublicUrl: ${Email__PublicUrl:-http://localhost:3000}
     depends_on:
       postgres: { condition: service_healthy }
 

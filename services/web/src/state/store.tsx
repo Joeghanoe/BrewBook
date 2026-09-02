@@ -61,6 +61,8 @@ interface Store {
   setBrewPrivacy: (brewId: string, isPrivate: boolean) => Promise<void>;
   setSharing: (share: boolean) => Promise<void>;
 
+  /** Whether this deployment has friends, invitations and shared recipes at all. */
+  hasFriends: boolean;
   /** Whose roasters the map is showing. One control, defaulting to the user's own (§4). */
   scope: RoasterScope;
   setScope: (s: RoasterScope) => void;
@@ -275,6 +277,9 @@ export function StoreProvider({ children, showSplash = true }: { children: React
     catch (e) { setFriendsError(e instanceof ApiError ? e.message : "Your friends could not be reached."); }
   }, []);
 
+  // A capability the deployment does not have is not a capability the client offers.
+  const hasFriends = me?.features?.friends ?? false;
+
   const guideOpen = guide === "open" || (guide === "auto" && me?.onboardedAt === null);
   const openGuide = () => setGuide("open");
   const closeGuide = () => {
@@ -292,7 +297,8 @@ export function StoreProvider({ children, showSplash = true }: { children: React
     commitBrew, rateBrew, ratePrompt, dismissRatePrompt: () => setRatePrompt(null),
     tagTarget, wheelOpen, openWheel, closeWheel, tags, setTags,
     addBean, archiveBean, keepBean, setBrewPrivacy, setSharing,
-    scope, setScope, friends, friendsError, loadFriends, invite, clearInvite,
+    hasFriends, scope: hasFriends ? scope : "mine", setScope, friends, friendsError, loadFriends,
+    invite: hasFriends ? invite : null, clearInvite,
     guideOpen, openGuide, closeGuide, roasterFocus, setRoasterFocus, toast, showToast, refresh,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

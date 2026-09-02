@@ -191,11 +191,16 @@ const Invite = () => {
     if (busy) return;
     setBusy(true);
     try {
-      const invite = await api.createInvite(addressed ? email.trim() : null);
+      const { invite, posted } = await api.createInvite(addressed ? email.trim() : null);
       setEmail("");
       await s.loadFriends();
-      if (addressed) {
-        s.showToast(`${invite.toEmail} will see the invitation when they open Brewbook`);
+      if (posted) {
+        s.showToast(`Invitation sent to ${invite.toEmail}`);
+      } else if (addressed) {
+        // No mail went out, so hand the user the link rather than let them think one did.
+        const url = inviteUrl(invite.token);
+        try { await navigator.clipboard.writeText(url); s.showToast(`Link copied — ${invite.toEmail} also sees it when they open Brewbook`); }
+        catch { s.showToast(`${invite.toEmail} will see the invitation when they open Brewbook`); }
       } else {
         const url = inviteUrl(invite.token);
         try { await navigator.clipboard.writeText(url); s.showToast("Link copied — send it however you like"); }
@@ -221,6 +226,11 @@ const Invite = () => {
           onKeyDown={(e) => { if (e.key === "Enter" && email.trim()) void send(true); }}
         />
         <button className="act" disabled={busy || !email.trim()} onClick={() => void send(true)}>INVITE →</button>
+      </div>
+      <div className="hint" style={{ textAlign: "left", paddingTop: 8 }}>
+        {s.me?.features?.emailInvites
+          ? "They get an email with the link, and see the invitation next time they open Brewbook."
+          : "Email is not set up on this deployment — an addressed invitation waits for them in Brewbook, and you get the link to send yourself."}
       </div>
       <button className="outline" style={{ width: "100%", marginTop: 10 }} disabled={busy} onClick={() => void send(false)}>
         OR COPY A LINK

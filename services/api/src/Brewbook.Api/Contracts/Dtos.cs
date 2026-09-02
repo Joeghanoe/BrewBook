@@ -4,7 +4,7 @@ namespace Brewbook.Api.Contracts;
 
 // Wire shapes. Versioned by route prefix (/api/v1). Add fields; never repurpose one.
 
-public sealed record FeatureFlags(bool LabelReading, bool SpeechTranscription);
+public sealed record FeatureFlags(bool LabelReading, bool SpeechTranscription, bool Friends, bool EmailInvites);
 
 public sealed record MeResponse(
     Guid Id,
@@ -151,6 +151,12 @@ public sealed record FriendsResponse(
     IReadOnlyList<FriendInviteDto> Received);
 
 public sealed record CreateFriendInviteRequest(string? Email);
+
+/// <summary>
+/// A new invitation. <c>Posted</c> says whether it actually went out by mail — an invitation is a
+/// row and a token first, and the link works either way.
+/// </summary>
+public sealed record CreatedInviteResponse(FriendInviteDto Invite, bool Posted);
 
 public sealed record RelocateRoasterRequest(string? Query);
 

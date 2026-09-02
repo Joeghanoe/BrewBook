@@ -48,7 +48,7 @@ export const App = () => {
             {s.screen === "scanform" && <ScanForm />}
             {s.screen === "passport" && <Passport />}
             {s.screen === "profile" && <Profile />}
-            {s.screen === "friends" && <Friends />}
+            {s.screen === "friends" && s.hasFriends && <Friends />}
             {showBar(s.screen, s.wheelOpen) && <TabBar />}
             {s.wheelOpen && <WheelLayer />}
             {s.guideOpen && <Guide />}

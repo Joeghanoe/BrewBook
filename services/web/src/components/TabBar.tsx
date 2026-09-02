@@ -19,7 +19,7 @@ export const TabBar = () => {
   const s = useStore();
   return (
     <nav className="tabbar" aria-label="Main">
-      {TABS.map((t) => {
+      {TABS.filter((t) => t.screen !== "friends" || s.hasFriends).map((t) => {
         const on = s.screen === t.screen || t.under.includes(s.screen);
         return (
           <button key={t.screen} className={"tab" + (on ? " on" : "")} aria-current={on ? "page" : undefined}

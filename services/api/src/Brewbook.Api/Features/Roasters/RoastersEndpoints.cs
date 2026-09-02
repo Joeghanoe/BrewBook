@@ -2,6 +2,7 @@ using Brewbook.Api.Auth;
 using Brewbook.Api.Contracts;
 using Brewbook.Api.Data;
 using Brewbook.Api.Domain;
+using Brewbook.Api.Features;
 using Brewbook.Api.Features.Friends;
 using Brewbook.Api.Integrations.GooglePlaces;
 using Microsoft.EntityFrameworkCore;
@@ -24,10 +25,11 @@ public static class RoastersEndpoints
 
         var g = api.MapGroup("/roasters");
 
-        g.MapGet("/", async (string? flavours, string? scope, CurrentUser me, BrewbookDbContext db, IRoasterLocator locator, TimeProvider clock, CancellationToken ct) =>
+        g.MapGet("/", async (string? flavours, string? scope, CurrentUser me, BrewbookDbContext db, IRoasterLocator locator, TimeProvider clock, IOptions<FeatureOptions> features, CancellationToken ct) =>
         {
             var wanted = RoasterStats.ParseFlavours(flavours);
-            var view = ParseScope(scope);
+            // With friends off there is only one map, whatever the query string asks for.
+            var view = features.Value.Friends ? ParseScope(scope) : Scope.Mine;
 
             var friendIds = view is Scope.Mine ? [] : await FriendGraph.FriendIdsAsync(db, me.Id, ct);
             var mineIncluded = view is not Scope.Friends;
@@ -114,8 +116,9 @@ public static class RoastersEndpoints
         });
 
         // A friend's rated brews from one roaster: the numbers behind the opinion (§5).
-        g.MapGet("/{id:guid}/recipes", async (Guid id, Guid userId, CurrentUser me, BrewbookDbContext db, CancellationToken ct) =>
+        g.MapGet("/{id:guid}/recipes", async (Guid id, Guid userId, CurrentUser me, BrewbookDbContext db, IOptions<FeatureOptions> features, CancellationToken ct) =>
         {
+            if (!features.Value.Friends) return Results.NotFound();
             if (userId == me.Id) return Results.ValidationProblem(new Dictionary<string, string[]> { ["userId"] = ["Your own brews are in your log."] });
             if (!await FriendGraph.AreFriendsAsync(db, me.Id, userId, ct)) return Results.NotFound();
 

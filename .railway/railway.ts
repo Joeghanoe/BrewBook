@@ -66,7 +66,18 @@ export default defineRailway(() => {
       // geocodes roaster names from the API; the browser key (Maps JavaScript API, restricted to
       // the proxy domain as referrer) is handed to the SPA. Without them roasters stay unlocated
       // and the map screen shows a list.
-      ...preserveAll("GEMINI_API_KEY", "GOOGLE_MAPS_SERVER_KEY", "GOOGLE_MAPS_BROWSER_KEY"),
+      // Friends, invitations, shared recipes and the map's friends scope are off in code and stay
+      // off here. Turn them on by adding Features__Friends: "true" below — deliberately a code
+      // change, so enabling a capability is reviewable rather than a dashboard click.
+      // Optional. Cloudflare Email Sending posts friend invitations, and needs Features__Friends
+      // as well. Without it an invitation is still made and still works — it just travels as a
+      // link the sender passes on themselves.
+      // Email__From must sit on a domain onboarded for Email Sending; Email__PublicUrl is the
+      // proxy's public domain, which is where an invitation link has to land.
+      ...preserveAll(
+        "GEMINI_API_KEY", "GOOGLE_MAPS_SERVER_KEY", "GOOGLE_MAPS_BROWSER_KEY",
+        "CLOUDFLARE_EMAIL_TOKEN", "Email__AccountId", "Email__From", "Email__PublicUrl",
+      ),
     },
   });
 

@@ -12,7 +12,7 @@ export interface Me {
   id: string;
   email: string;
   displayName: string | null;
-  features: { labelReading: boolean; speechTranscription: boolean };
+  features: { labelReading: boolean; speechTranscription: boolean; friends: boolean; emailInvites: boolean };
   /** When the first-sign-in guide was finished or skipped; null until then. */
   onboardedAt: string | null;
   /** Whether a newly rated brew is visible to friends. Per-brew overrides sit on the brew. */
@@ -252,6 +252,12 @@ export interface FriendInvite {
   toEmail: string | null;
   createdAt: string;
   expiresAt: string;
+}
+
+/** A new invitation. `posted` says whether it actually went out by mail; the link works either way. */
+export interface CreatedInvite {
+  invite: FriendInvite;
+  posted: boolean;
 }
 
 export interface Friends {

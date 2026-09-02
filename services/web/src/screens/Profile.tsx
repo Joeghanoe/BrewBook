@@ -83,14 +83,18 @@ const Body = ({ p }: { p: ProfileData }) => {
         <span>FLAVOUR PASSPORT</span><div className="line" /><span>STAMPS →</span>
       </button>
 
-      <div style={{ marginTop: 22 }}><Rule label="SHARING" /></div>
-      <button className="setting" onClick={() => void s.setSharing(!s.me?.shareRatedByDefault)} aria-pressed={s.me?.shareRatedByDefault ?? true}>
-        <div className="body">
-          <div className="name">Share brews I rate</div>
-          <div className="sub">Rating one publishes it to your friends. Any brew can still be made private on its own.</div>
-        </div>
-        <div className={"switch" + (s.me?.shareRatedByDefault ? " on" : "")}><div /></div>
-      </button>
+      {s.hasFriends && (
+        <>
+          <div style={{ marginTop: 22 }}><Rule label="SHARING" /></div>
+          <button className="setting" onClick={() => void s.setSharing(!s.me?.shareRatedByDefault)} aria-pressed={s.me?.shareRatedByDefault ?? true}>
+            <div className="body">
+              <div className="name">Share brews I rate</div>
+              <div className="sub">Rating one publishes it to your friends. Any brew can still be made private on its own.</div>
+            </div>
+            <div className={"switch" + (s.me?.shareRatedByDefault ? " on" : "")}><div /></div>
+          </button>
+        </>
+      )}
 
       <div className="signout">
         <a className="act" href={api.signOutUrl}>SIGN OUT →</a>

@@ -54,6 +54,14 @@ from `env(safe-area-inset-*)` in `.screen`.
 The premise is coffees. With no open bag, home is the first task — add a bag — not a ticket with
 a disabled button.
 
+### A capability that is off has no routes
+
+Friends, invitations and shared recipes sit behind `Features__Friends`, off by default. Off is not
+a polite refusal: the routes are never mapped, the map ignores `?scope=`, and no mailer is
+constructed. `/api/v1/me` reports every capability through `Capabilities`, and the client drops the
+surface rather than disabling it. Turning one on is an edit to `.railway/railway.ts`, so it is
+reviewed like code. Nothing is deleted while a capability is off.
+
 ### Rating is what publishing is
 
 A rated brew is visible to friends unless it is marked private; an unrated one is never visible,
@@ -144,9 +152,11 @@ startup and is the only thing that touches the schema.
   wrappers or mapping layers over EF Core; the endpoint is the application service.
 - Keep the container out of domain code. `VoiceCommandParser`, `FlavourLexicon` and
   `GeminiLabelExtractor.Map` are pure and tested without a host or a network.
-- One outbound integration (`Integrations/Gemini`), one key, one HttpClient. Providers hide behind
-  `ILabelExtractor` / `ISpeechTranscriber`; `/api/v1/me` reports which are configured so the client
-  can pick its path without probing.
+- Outbound integrations are few and each hides behind one interface: `ILabelExtractor` /
+  `ISpeechTranscriber` (Gemini), `IRoasterLocator` (Google Places), `IInviteMailer` (Cloudflare
+  Email Sending). Each has an `Unconfigured` implementation, and `/api/v1/me` reports which are
+  configured so the client can pick its path without probing. A send that fails is logged and
+  reported, never retried in the request and never allowed to fail the write it followed.
 - Validate at the edge (endpoint), keep internal types precise after that.
 - The web client keeps one store (`state/store.tsx`). Screens are components; there is no router
   because the app is a stack of screens and sheets, not URLs. The one URL that matters is
@@ -167,7 +177,8 @@ a cache, a second datastore, an auth library in the API, or a component framewor
 - A new brew or bean field touches the entity, a migration, the DTO, `types.ts`, the screen that
   shows it, and a test.
 - A new environment variable touches `.railway/railway.ts` (`preserve()` for secrets), `.env.example`,
-  `docker-compose.yml` if local, and the README.
+  `docker-compose.yml` if local, and the README. A variable that turns a feature on also touches
+  `FeatureFlags`, so the UI can say which path the user is getting.
 - A file a Dockerfile copies must be in the matching `WATCH` list in `.railway/railway.ts`.
 - A new UI state needs loading, empty, unavailable and error behaviour at 390px width.
 - A voice phrase the parser should understand gets a row in `VoiceCommandParserTests`.

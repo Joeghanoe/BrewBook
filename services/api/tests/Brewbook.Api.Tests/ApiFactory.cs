@@ -10,15 +10,21 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace Brewbook.Api.Tests;
 
 /// <summary>The real composition root on an in-memory SQLite database. One database per factory, so tests do not share state.</summary>
-public sealed class ApiFactory(Action<IServiceCollection>? configure = null) : WebApplicationFactory<Program>
+public sealed class ApiFactory(Action<IServiceCollection>? configure = null, IReadOnlyDictionary<string, string>? settings = null)
+    : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection _conn = new("DataSource=:memory:");
+
+    /// <summary>A host with the friends capability turned on; it is off unless a deployment asks for it.</summary>
+    public static ApiFactory WithFriends(Action<IServiceCollection>? configure = null) =>
+        new(configure, new Dictionary<string, string> { ["Features:Friends"] = "true" });
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         _conn.Open();
         builder.UseSetting("DATABASE_URL", "postgres://test:test@localhost/unused");
         builder.UseSetting("Database:MigrateOnStartup", "false");
+        foreach (var (key, value) in settings ?? new Dictionary<string, string>()) builder.UseSetting(key, value);
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<DbContextOptions<BrewbookDbContext>>();

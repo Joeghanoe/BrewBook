@@ -68,7 +68,7 @@ public static class FriendsEndpoints
 
         // A link, or a link addressed to someone. There is no search and nobody is discoverable:
         // the only way into someone's log is to be handed the key (§5).
-        g.MapPost("/invites", async (CreateFriendInviteRequest? req, CurrentUser me, BrewbookDbContext db, TimeProvider clock, CancellationToken ct) =>
+        g.MapPost("/invites", async (CreateFriendInviteRequest? req, CurrentUser me, BrewbookDbContext db, TimeProvider clock, IInviteMailer mailer, CancellationToken ct) =>
         {
             var email = req?.Email?.Trim().ToLowerInvariant();
             if (email is { Length: > 0 })
@@ -92,7 +92,12 @@ public static class FriendsEndpoints
             };
             db.FriendInvites.Add(invite);
             await db.SaveChangesAsync(ct);
-            return Results.Ok(new FriendInviteDto(invite.Token, PersonName.Of(me.Required), invite.ToEmail, invite.CreatedAt, invite.ExpiresAt));
+
+            // The invitation exists whatever the post does. Mail is best-effort and says so.
+            var from = PersonName.Of(me.Required);
+            var posted = email is not null && await mailer.SendAsync(email, from, invite.Token, ct);
+            return Results.Ok(new CreatedInviteResponse(
+                new FriendInviteDto(invite.Token, from, invite.ToEmail, invite.CreatedAt, invite.ExpiresAt), posted));
         });
 
         // Reading an invitation is all an invitee can do before accepting: no roasters, no recipes, no preview.

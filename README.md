@@ -127,3 +127,56 @@ The browser key is fetched from `/api/v1/config` at runtime; nothing is baked in
 Roasters are shared rows keyed by normalised name (trim, casefold, collapse spaces); ratings and
 flavour tags stay per user. The location comes from Google or from nobody: an unconfigured or
 failed lookup leaves the roaster unlocated rather than guessing.
+
+## Friends, invitations and shared recipes (off by default)
+
+The whole friends surface — inviting, accepting, a friend's roasters on your map, their recipes on
+your ticket — is one capability behind one switch, and it is **off** unless a deployment turns it
+on:
+
+```
+Features__Friends=true      # on the `api` service
+```
+
+Off means the routes are not there: `/api/v1/friends/*` is 404, `/api/v1/roasters` ignores
+`?scope=` and answers with your own map, and recipes are unreadable. `/api/v1/me` reports
+`features.friends`, so the client drops the FRIENDS tab, the map's scope control, the sharing
+setting and the per-brew private toggle rather than showing controls that cannot do anything.
+Nothing is deleted while it is off: friendships, invitations and brew privacy all keep their rows.
+
+Email (below) is gated by this too — with friends off, nothing is ever posted to anyone.
+
+## Cloudflare Email Sending for friend invitations (optional)
+
+A friendship starts with an invitation. The invitation is a row and a token whatever happens next:
+the sender always gets a link they can pass on themselves, and an invitation addressed to an email
+is also waiting in Brewbook the next time that person opens it. Configuring this only adds one
+thing — the invitation also arrives by mail.
+
+Email Sending is a Cloudflare Email Service feature. It needs a **Workers Paid** plan and a sender
+domain onboarded through the Cloudflare dashboard, which provisions the SPF, DKIM and bounce
+records for you.
+
+0. Turn the friends capability on first (above). Without it the mailer is never even constructed.
+1. **Cloudflare dashboard → Email Service → Email Sending**: onboard the domain you will send from
+   and let it write the DNS records.
+2. **My Profile → API Tokens → Create token** with permission to send email on that account. Put it
+   on the `api` service on Railway as `CLOUDFLARE_EMAIL_TOKEN`.
+3. Set `Email__AccountId` (the Cloudflare account id), `Email__From` (an address on the onboarded
+   domain, e.g. `invites@example.com`) and `Email__PublicUrl` (the **proxy** service's public
+   domain — an invitation link has to land where people sign in, not on `api` or `web`).
+4. All four must be set or the feature stays off. `/api/v1/me` reports `features.emailInvites`, and
+   the friends screen says which of the two paths the user is getting.
+
+| Variable (on `api`) | Effect |
+|---|---|
+| `CLOUDFLARE_EMAIL_TOKEN` | The API token that authorises sending. |
+| `Email__AccountId` | Cloudflare account id in the send URL. |
+| `Email__From` | Sender address; must be on a domain onboarded for Email Sending. |
+| `Email__PublicUrl` | Where `/?invite=<token>` links point. The proxy's domain. |
+| `Email__FromName` | Optional display name, `Brewbook` by default. |
+
+Sending is best-effort and never blocks the invitation: a refused or timed-out send is logged with
+its status (never the recipient) and the response says `posted: false`, at which point the app hands
+the sender the link instead of implying an email went out. Swapping providers is one class —
+`IInviteMailer` has a single method and the message itself lives in `Features/Friends/InviteMail.cs`.
