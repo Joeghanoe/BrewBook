@@ -54,13 +54,13 @@ public class BeanEditTests
         using var f = new ApiFactory();
         var c = f.ClientFor("sam@example.com");
         var bean = await Add(c, "Cata Reserva", "Kolibri Cofee Roasters", null);
-        var before = Assert.Single(await c.GetFromJsonAsync<List<RoasterResponse>>("/api/v1/roasters"))!;
+        var before = Assert.Single((await c.GetFromJsonAsync<List<RoasterResponse>>("/api/v1/roasters"))!);
 
         var edited = await Patch(c, bean.Id, new UpdateBeanRequest(Roaster: "Kolibri Coffee Roasters"));
         Assert.Equal("Kolibri Coffee Roasters", edited.Roaster);
         Assert.NotEqual(before.Id, edited.RoasterId);
 
-        var after = Assert.Single(await c.GetFromJsonAsync<List<RoasterResponse>>("/api/v1/roasters"))!;
+        var after = Assert.Single((await c.GetFromJsonAsync<List<RoasterResponse>>("/api/v1/roasters"))!);
         Assert.Equal("Kolibri Coffee Roasters", after.Name);
     }
 
