@@ -185,17 +185,26 @@ a cache, a second datastore, an auth library in the API, or a component framewor
 
 ## Verifying
 
+Run what CI runs, in CI's order and configuration. A Debug build is not the same check, and
+`dotnet build` after `dotnet test` is a no-op that reports success without recompiling anything —
+between them that combination hides diagnostics that fail the pipeline.
+
 ```bash
-# API: build with warnings as errors, then the tests (in-memory SQLite, no Postgres needed)
-dotnet build services/api/Brewbook.slnx -warnaserror
-dotnet test services/api/Brewbook.slnx
+# API: Release, warnings as errors, then the tests against that same build
+# (in-memory SQLite, no Postgres needed)
+dotnet restore services/api/Brewbook.slnx
+dotnet build services/api/Brewbook.slnx --no-restore -c Release -warnaserror
+dotnet test services/api/Brewbook.slnx --no-build -c Release
 
 # Web
-cd services/web && npm run typecheck && npm test && npm run build
+cd services/web && npm run typecheck && npm test && npx vite build
 
 # Whole stack locally (fake identity, no Google): http://localhost:3000
 docker compose up --build
 ```
+
+After adding a file to a test project, build before trusting a green run: an incremental build can
+skip the project that holds the new code.
 
 Backend behaviour changes ship with a focused test. Do not point tests at a hosted database.
 Report which checks ran and whether they passed; leave unclaimed what could not run.
