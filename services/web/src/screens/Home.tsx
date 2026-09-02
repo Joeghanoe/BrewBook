@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Grabber, HomeBar, Rule, StatusBar, Star } from "../components/Chrome";
+import { Grabber, Rule, Star } from "../components/Chrome";
 import { EyeGlyph, WheelIcon } from "../components/Icons";
 import { changedKeys, daysOffRoast, fmtTime, lastLabel, PARAMS, round1, sameAsLabel } from "../lib/format";
 import { useStore } from "../state/store";
@@ -13,64 +13,100 @@ export const Home = () => {
   const changes = changedKeys(s.params, s.base);
   const days = daysOffRoast(bean?.roastDate ?? null);
 
+  const idle = !s.sheet && !s.ratePrompt && !s.wheelOpen;
+
   return (
     <div className="screen">
-      <StatusBar />
       {s.ratePrompt && <RateCard />}
       <div className="home-head">
-        <button onClick={() => s.setSheet("switcher")}>
-          <div className="bean-name">{bean ? bean.name : "NO BAG OPEN"} <span>⌄</span></div>
+        <button onClick={() => (bean ? s.setSheet("switcher") : s.setScreen("scan"))}>
+          <div className="bean-name">{bean ? bean.name : "NO BAG OPEN"} <span>{bean ? "⌄" : ""}</span></div>
           <div className="bean-meta">
-            {bean ? `${bean.roaster ?? "unknown roaster"} · ${days === null ? "roast date unset" : `${days} d off roast`}` : "open the library to add one"}
+            {bean ? `${bean.roaster ?? "unknown roaster"} · ${days === null ? "roast date unset" : `${days} d off roast`}` : "the log starts with a bag"}
           </div>
         </button>
         <div className="home-acts">
-          <button className="link profile-link" onClick={() => s.setScreen("profile")}>PROFILE</button>
-          <EyeGlyph onClick={() => (bean ? s.setScreen("bean") : s.setScreen("library"))} />
+          <EyeGlyph idle={idle} onClick={() => (bean ? s.setScreen("bean") : s.setScreen("scan"))} />
         </div>
       </div>
 
-      <div className="ticket">
-        <div className="punch l" /><div className="punch r" />
-        <div className="ticket-head"><span>BREW TICKET</span><span>N° {String(s.nextNumber).padStart(3, "0")}</span></div>
-        <div className="ticket-method"><Star /> FILTER · HAND GRINDER <Star /></div>
-        <div className="ticket-grid">
-          {PARAMS.map((c) => {
-            const v = s.params[c.key];
-            const b = s.base[c.key];
-            const changed = v !== b;
-            return (
-              <button key={c.key} className="cell" onClick={() => s.setSheet("adjust")}>
-                <div className="label">{c.label}</div>
-                <div className="value">{c.fmt(v)}<span>{c.cellUnit}</span></div>
-                <div className="was">{changed ? `was ${c.fmt(b)}` : ""}</div>
-                <div className="mark" style={{ opacity: changed ? 1 : 0 }} />
+      {!bean ? <FirstBag /> : (
+        <>
+          <div className="ticket">
+            <div className="punch l" /><div className="punch r" />
+            <div className="ticket-head"><span>BREW TICKET</span><span>N° {String(s.nextNumber).padStart(3, "0")}</span></div>
+            <div className="ticket-method"><Star /> FILTER · HAND GRINDER <Star /></div>
+            <div className="ticket-grid">
+              {PARAMS.map((c) => {
+                const v = s.params[c.key];
+                const b = s.base[c.key];
+                const changed = v !== b;
+                return (
+                  <button key={c.key} className="cell" onClick={() => s.setSheet("adjust")}>
+                    <div className="label">{c.label}</div>
+                    <div className="value">{c.fmt(v)}<span>{c.cellUnit}</span></div>
+                    <div className="was">{changed ? `was ${c.fmt(b)}` : ""}</div>
+                    <div className="mark" style={{ opacity: changed ? 1 : 0 }} />
+                  </button>
+                );
+              })}
+              <button className="cell" onClick={() => s.setSheet("adjust")}>
+                <div className="label">TIME</div>
+                <div className="value">{fmtTime(TARGET_MS)}</div>
+                <div className="was" />
+                <div className="mark" style={{ opacity: 0 }} />
               </button>
-            );
-          })}
-          <button className="cell" onClick={() => s.setSheet("adjust")}>
-            <div className="label">TIME</div>
-            <div className="value">{fmtTime(TARGET_MS)}</div>
-            <div className="was" />
-            <div className="mark" style={{ opacity: 0 }} />
-          </button>
-        </div>
-        <div className="ticket-foot">
-          <span>{changes.length ? `${changes.length} ${changes.length === 1 ? "change" : "changes"} from last brew` : sameAsLabel(bean?.lastBrewedAt ?? null)}</span>
-          <span className="stamp">UNBREWED</span>
-        </div>
-        <div className="perforation" />
-        <button className="brew-btn" disabled={!bean} onClick={() => { s.dismissRatePrompt(); s.setSheet(null); s.setScreen("timer"); }}>▶ &nbsp;BREW</button>
-      </div>
-      <div className="hint" style={{ marginTop: 11 }}>{bean ? "tap any value to adjust · speak changes while you brew" : "add a bag from the library before the first brew"}</div>
-      <div style={{ flex: 1 }} />
-      <div className="home-bar">
-        <button className="outline" onClick={() => s.setSheet("adjust")}>ADJUST</button>
-        <button className="wheel-btn" onClick={() => s.openWheel()} aria-label="Tag flavours"><WheelIcon /></button>
-      </div>
-      <HomeBar />
+            </div>
+            <div className="ticket-foot">
+              <span>
+                {s.ticketSource
+                  ? `from ${s.ticketSource.name}'s N° ${String(s.ticketSource.number).padStart(3, "0")}`
+                  : changes.length
+                    ? `${changes.length} ${changes.length === 1 ? "change" : "changes"} from last brew`
+                    : sameAsLabel(bean.lastBrewedAt)}
+              </span>
+              <span className="stamp">UNBREWED</span>
+            </div>
+            <div className="perforation" />
+            <button className="brew-btn" onClick={() => { s.dismissRatePrompt(); s.setSheet(null); s.setScreen("timer"); }}>▶ &nbsp;BREW</button>
+          </div>
+          <div className="hint" style={{ marginTop: 11 }}>tap any value to adjust · speak changes while you brew</div>
+          <div style={{ flex: 1 }} />
+          <div className="home-bar">
+            <button className="outline" onClick={() => s.setSheet("adjust")}>ADJUST</button>
+            <button className="wheel-btn" onClick={() => s.openWheel()} aria-label="Tag flavours"><WheelIcon /></button>
+          </div>
+        </>
+      )}
       {s.sheet === "adjust" && <AdjustSheet />}
       {s.sheet === "switcher" && <SwitcherSheet />}
+    </div>
+  );
+};
+
+/**
+ * The hard wall (§7): there is no brewing without a bag, so the empty state is the first task
+ * rather than a disabled button with an explanation next to it.
+ */
+const FirstBag = () => {
+  const s = useStore();
+  return (
+    <div className="firstbag">
+      <div className="ticket ghost">
+        <div className="punch l" /><div className="punch r" />
+        <div className="ticket-head"><span>BREW TICKET</span><span>N° 001</span></div>
+        <div className="ticket-grid">
+          {[...PARAMS.map((c) => c.label), "TIME"].map((label) => (
+            <div key={label} className="cell"><div className="label">{label}</div><div className="value">—</div><div className="was" /><div className="mark" style={{ opacity: 0 }} /></div>
+          ))}
+        </div>
+        <div className="ticket-foot"><span>nothing to dial in yet</span><span className="stamp">EMPTY</span></div>
+      </div>
+      <div className="firstbag-text">
+        A brew is one bag of coffee, dialled in. Add the bag and the ticket writes itself.
+      </div>
+      <div style={{ flex: 1 }} />
+      <button className="cta" onClick={() => s.setScreen("scan")}><span>ADD YOUR FIRST BAG</span></button>
     </div>
   );
 };
@@ -153,7 +189,6 @@ const SwitcherSheet = () => {
             </button>
           );
         })}
-        <button className="outline" style={{ height: 52, marginTop: 16, width: "100%", fontSize: 12 }} onClick={() => { s.setSheet(null); s.setScreen("library"); }}>OPEN LIBRARY →</button>
       </div>
     </>
   );

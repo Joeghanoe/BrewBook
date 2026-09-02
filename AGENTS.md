@@ -7,7 +7,8 @@ added by scanning the label. It answers one question:
 
 > What did I change since the last brew, and was it better?
 
-It is not a recipe community, a roaster catalogue, a shop, or an analytics product.
+Friends swap the numbers behind a rating; it is still not a recipe community, a roaster
+catalogue, a shop, or an analytics product.
 
 ## What must stay true
 
@@ -37,6 +38,39 @@ without the header; it never treats one as anonymous. The API therefore has no p
 must not get one. The first request from an email provisions that user. Every query is scoped to
 the current user; a row that belongs to someone else is a 404, not a 403.
 
+### One bar, one way to each place
+
+Navigation is the bottom bar and nothing else: home, library, map, profile. It carries
+destinations, not actions — scan, bean detail, the wheel and the passport are reached from the
+place they belong to. Do not add a second route to a screen that the bar already reaches.
+
+### The phone draws its own chrome
+
+No status bar, no home indicator, no clock or battery of the app's own. Screens take their insets
+from `env(safe-area-inset-*)` in `.screen`.
+
+### No brewing without a bag
+
+The premise is coffees. With no open bag, home is the first task — add a bag — not a ticket with
+a disabled button.
+
+### Rating is what publishing is
+
+A rated brew is visible to friends unless it is marked private; an unrated one is never visible,
+whatever the flags say. There is no separate share step and no decision at the moment of rating.
+`FriendGraph.SharedBrewsOf` is the only way a friend's brews are read — do not widen it.
+
+### Friendship is mutual and starts with a link
+
+One row per ordered pair in `friendships`, written only when an invitation is accepted. No
+directory, no search, nobody discoverable: an invite token is the whole key. Before acceptance the
+invitee can read the invitation and nothing else.
+
+### Ratings stay attributed
+
+A roaster carries one `RoasterVoice` per person, each with their own rating. Never average people
+into a score, and never render a friend's pin so it looks like the user's own.
+
 ### Honest states
 
 Label reading and voice transcription go through Gemini and are best-effort. When the key is not
@@ -58,6 +92,14 @@ local (`VoiceCommandParser`), whatever produced the transcript.
   the lexicon knows them and stay quoted text where it does not.
 - A `label scan` is one attempt to read a bag photo. Its fields carry a provenance:
   `extracted`, `partial`, `missing`.
+- A `friendship` is mutual and permanent for now; a `friend invite` is a token, optionally
+  addressed to an email, that expires and is used once.
+- A `recipe` is not an object. It is a friend's rated brew: the five ticket values, the time, the
+  stars and the tags. Taking one copies its numbers onto your ticket, never its bag.
+- A `wish` is a roaster pinned as somewhere to go. It clears itself when a bag from that roaster
+  reaches the library.
+- The bag's `weight` comes off the label and is as skippable as any other field. With it, the
+  library counts down `brewsLeft` and asks once whether a bag is finished; without it, neither.
 - An `achievement` is a stamp in the `passport`, earned by tasting (tagging, either polarity)
   flavours, brewing or adding bags. The catalogue is code (`Features/Achievements`); rules are
   pure over (brews, tags, beans). A stamp is never taken back.
@@ -73,7 +115,8 @@ services/api        .NET 10 ASP.NET Core minimal API + EF Core + Npgsql
     Contracts/        wire DTOs for /api/v1
     Domain/           entities and BrewParams
     Data/             DbContext and append-only migrations
-    Features/         one folder per capability: Beans, Brews, Voice, Labels, Users, Achievements
+    Features/         one folder per capability: Beans, Brews, Voice, Labels, Users, Achievements,
+                      Roasters, Friends, Profile
     Integrations/     Gemini client (the only outbound dependency)
   tests/Brewbook.Api.Tests   xunit; the real host on in-memory SQLite
 infra               per-service Dockerfiles, nginx template, local edge config
@@ -106,7 +149,8 @@ startup and is the only thing that touches the schema.
   can pick its path without probing.
 - Validate at the edge (endpoint), keep internal types precise after that.
 - The web client keeps one store (`state/store.tsx`). Screens are components; there is no router
-  because the app is a stack of screens and sheets, not URLs.
+  because the app is a stack of screens and sheets, not URLs. The one URL that matters is
+  `/?invite=<token>`, which the store reads once and then strips.
 - Match the design tokens exactly: colours, type, spacing and copy in `services/web/src/styles.css`
   come from the handoff. Sharp corners everywhere except circles and the phone shell. Hit targets
   are at least 44px.

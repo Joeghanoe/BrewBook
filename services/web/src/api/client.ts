@@ -1,4 +1,4 @@
-import type { Bean, Brew, BrewParams, Config, CreateBean, FlavourTag, LabelScan, Me, Passport, Profile, Roaster, VoiceParse } from "./types";
+import type { Bean, Brew, BrewParams, Config, CreateBean, FlavourTag, Friend, FriendInvite, Friends, LabelScan, Me, Passport, Profile, Roaster, RoasterScope, SharedBrew, VoiceParse } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -37,10 +37,13 @@ const json = (method: string, body: unknown): RequestInit => ({
 export const api = {
   me: () => request<Me>("/me"),
   markOnboarded: () => request<Me>("/me/onboarded", { method: "POST" }),
+  setSharing: (shareRatedByDefault: boolean) => request<Me>("/me", json("PATCH", { shareRatedByDefault })),
   profile: () => request<Profile>("/profile"),
   beans: () => request<Bean[]>("/beans"),
   createBean: (b: CreateBean) => request<Bean>("/beans", json("POST", b)),
-  archiveBean: (id: string, archived: boolean) => request<Bean>(`/beans/${id}`, json("PATCH", { archived })),
+  archiveBean: (id: string, archived: boolean) => request<Bean>(`/beans/${id}`, json("PATCH", { archived, archivePromptAnswered: true })),
+  /** Answering the archive prompt without archiving: asked once, then never again for that bag. */
+  keepBean: (id: string) => request<Bean>(`/beans/${id}`, json("PATCH", { archivePromptAnswered: true })),
   scanLabel: (image: Blob) => {
     const form = new FormData();
     form.append("image", image, "label.jpg");
@@ -53,6 +56,7 @@ export const api = {
   rateBrew: (id: string, rating: number | null, defects: string[] | null) =>
     request<Brew>(`/brews/${id}/rating`, json("PATCH", { rating, defects })),
   tagBrew: (id: string, tags: FlavourTag[]) => request<Brew>(`/brews/${id}/tags`, json("PUT", { tags })),
+  setBrewPrivacy: (id: string, isPrivate: boolean) => request<Brew>(`/brews/${id}/privacy`, json("PATCH", { isPrivate })),
   passport: () => request<Passport>("/achievements"),
   parseVoice: (transcript: string, current: BrewParams) => request<VoiceParse>("/voice/parse", json("POST", { transcript, current })),
   transcribeVoice: (audio: Blob, current: BrewParams) => {
@@ -62,7 +66,18 @@ export const api = {
     return request<VoiceParse>("/voice/transcribe", { method: "POST", body: form });
   },
   config: () => request<Config>("/config"),
-  roasters: (flavours: string[]) => request<Roaster[]>("/roasters" + (flavours.length ? "?flavours=" + encodeURIComponent(flavours.join(",")) : "")),
+  roasters: (flavours: string[], scope: RoasterScope) => {
+    const q = new URLSearchParams({ scope });
+    if (flavours.length) q.set("flavours", flavours.join(","));
+    return request<Roaster[]>("/roasters?" + q);
+  },
+  recipes: (roasterId: string, userId: string) => request<SharedBrew[]>(`/roasters/${roasterId}/recipes?userId=${userId}`),
+  wishRoaster: (id: string, wanted: boolean) => request<void>(`/roasters/${id}/wish`, { method: wanted ? "PUT" : "DELETE" }),
+  friends: () => request<Friends>("/friends"),
+  createInvite: (email: string | null) => request<FriendInvite>("/friends/invites", json("POST", { email })),
+  readInvite: (token: string) => request<FriendInvite>(`/friends/invites/${encodeURIComponent(token)}`),
+  revokeInvite: (token: string) => request<void>(`/friends/invites/${encodeURIComponent(token)}`, { method: "DELETE" }),
+  acceptInvite: (token: string) => request<Friend>(`/friends/invites/${encodeURIComponent(token)}/accept`, { method: "POST" }),
   relocateRoaster: (id: string, query: string | null) => request<Roaster>(`/roasters/${id}/relocate`, json("POST", { query })),
   signOutUrl: "/oauth2/sign_out",
 };

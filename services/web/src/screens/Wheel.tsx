@@ -43,7 +43,6 @@ export const WheelLayer = () => {
         <div className="layer-title">
           <button className="sqbtn" onClick={zoom ? () => setZoom(null) : done} aria-label={zoom ? "Back" : "Close"}>{zoom ? "←" : "✕"}</button>
           <div style={{ flex: 1, minWidth: 0 }}><div className="t">TAG FLAVOURS</div><div className="s">{subtitle}</div></div>
-          <button className="link" onClick={() => { done(); s.setScreen("passport"); }}>PASSPORT →</button>
         </div>
         {zoom ? (
           <ZoomView category={zoom} onBack={() => setZoom(null)} />
@@ -90,7 +89,6 @@ export const WheelLayer = () => {
           ))}
         </div>
         <div style={{ padding: "0 22px 14px" }}><button className="cta" onClick={done}><span>DONE</span></button></div>
-        <div className="homebar"><div /></div>
       </div>
     </>
   );

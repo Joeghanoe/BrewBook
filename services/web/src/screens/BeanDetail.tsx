@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { HomeBar, Rule, StatusBar } from "../components/Chrome";
+import { Rule } from "../components/Chrome";
 import { daysOffRoast, describeDelta, describeFull, fmtTime, stars, whenLabel } from "../lib/format";
 import { useStore } from "../state/store";
 
@@ -15,12 +15,11 @@ export const BeanDetail = () => {
 
   return (
     <div className="screen">
-      <StatusBar />
       <div className="nav">
-        <button className="sqbtn" onClick={() => s.setScreen("home")} aria-label="Back">←</button>
+        <button className="sqbtn" onClick={() => s.setScreen("library")} aria-label="Back to the library">←</button>
         <div className="title">BEAN</div>
         <div style={{ flex: 1 }} />
-        <button className="link" onClick={() => s.setScreen("library")}>LIBRARY →</button>
+        <button className="link" onClick={() => { s.selectBean(bean.id); s.setScreen("home"); }}>BREW THIS →</button>
       </div>
       <div className="plaque">
         <div className="name">{bean.name}</div>
@@ -62,6 +61,11 @@ export const BeanDetail = () => {
                   <div className="acts">
                     <button className="act" onClick={() => { s.loadParams(h.params); s.setScreen("home"); s.showToast("Loaded onto the brew ticket"); }}>BREW THIS AGAIN →</button>
                     <button className="act" onClick={() => s.openWheel(h)}>TAG FLAVOURS →</button>
+                    {h.rating > 0 && (
+                      <button className={"act" + (h.isPrivate ? " quiet" : " on")} onClick={() => void s.setBrewPrivacy(h.id, !h.isPrivate)}>
+                        {h.isPrivate ? "PRIVATE" : "SHARED WITH FRIENDS"}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -75,7 +79,6 @@ export const BeanDetail = () => {
           </button>
         </div>
       </div>
-      <HomeBar />
     </div>
   );
 };

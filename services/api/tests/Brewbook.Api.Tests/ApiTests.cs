@@ -193,7 +193,7 @@ public class ApiTests
 
     private static async Task<BeanResponse> CreateBean(HttpClient c, string name)
     {
-        var res = await c.PostAsJsonAsync("/api/v1/beans", new CreateBeanRequest(name, "Symple", "Huila, Colombia", "Washed", null, null, null, null, null, ["Blackberry"], null));
+        var res = await c.PostAsJsonAsync("/api/v1/beans", new CreateBeanRequest(name, "Symple", "Huila, Colombia", "Washed", null, null, null, null, null, ["Blackberry"], null, null));
         res.EnsureSuccessStatusCode();
         return (await res.Content.ReadFromJsonAsync<BeanResponse>())!;
     }

@@ -19,7 +19,11 @@ public sealed class Bean
     public string? Altitude { get; set; }
     public string? RoastLevel { get; set; }
     public List<string> DeclaredNotes { get; set; } = [];
+    /// <summary>Net weight off the label, in grams. Null when the label did not say; no weight, no countdown (§7).</summary>
+    public decimal? WeightG { get; set; }
     public bool Archived { get; set; }
+    /// <summary>When the user was asked whether this bag is finished. Asked once per bag, never again.</summary>
+    public DateTimeOffset? ArchivePromptedAt { get; set; }
 
     /// <summary>Stored when the bag was added by scanning its label. Null when entered by hand.</summary>
     public string? LabelScanId { get; set; }

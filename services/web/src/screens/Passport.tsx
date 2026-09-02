@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { CategoryCoverage, Passport as PassportData } from "../api/types";
-import { HomeBar, Rule, StatusBar } from "../components/Chrome";
+import { Rule } from "../components/Chrome";
 import { whenLabel } from "../lib/format";
 import { fraction, leavesByGroup, ledgerOrder, stampDate } from "../lib/passport";
 import { annular, polar, wedgeAngles, WHEEL_GEOMETRY } from "../lib/wheelGeometry";
@@ -26,12 +26,9 @@ export const Passport = () => {
 
   return (
     <div className="screen">
-      <StatusBar />
       <div className="nav">
-        <button className="sqbtn" onClick={() => s.setScreen("home")} aria-label="Back">←</button>
+        <button className="sqbtn" onClick={() => s.setScreen("profile")} aria-label="Back to the profile">←</button>
         <div className="title">PASSPORT</div>
-        <div style={{ flex: 1 }} />
-        <button className="link" onClick={() => s.setScreen("library")}>LIBRARY →</button>
       </div>
       <div className="passport">
         {!data && !error && <div className="empty" style={{ textAlign: "center" }}>Opening the passport…</div>}
@@ -86,7 +83,6 @@ export const Passport = () => {
           </>
         )}
       </div>
-      <HomeBar />
     </div>
   );
 };

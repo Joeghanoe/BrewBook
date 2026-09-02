@@ -21,6 +21,11 @@ public sealed class Brew
 
     /// <summary>0 means unrated.</summary>
     public int Rating { get; set; }
+    /// <summary>
+    /// Kept out of friends' view. Rating something publishes it (§5); this is the per-brew way
+    /// back. Unrated brews are never shared whatever this says — there is nothing to stand behind.
+    /// </summary>
+    public bool IsPrivate { get; set; }
     public List<string> Defects { get; set; } = [];
 
     public DateTimeOffset BrewedAt { get; set; }

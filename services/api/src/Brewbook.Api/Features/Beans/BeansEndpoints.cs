@@ -15,16 +15,16 @@ public static class BeansEndpoints
     {
         var g = api.MapGroup("/beans");
 
-        g.MapGet("/", async (CurrentUser me, BrewbookDbContext db, CancellationToken ct) =>
+        g.MapGet("/", async (CurrentUser me, BrewbookDbContext db, TimeProvider clock, CancellationToken ct) =>
         {
             var beans = (await db.Beans.Where(b => b.UserId == me.Id).ToListAsync(ct)).OrderByDescending(b => b.CreatedAt).ToList();
-            return Results.Ok(await Project(db, beans, ct));
+            return Results.Ok(await Project(db, beans, clock, ct));
         });
 
-        g.MapGet("/{id:guid}", async (Guid id, CurrentUser me, BrewbookDbContext db, CancellationToken ct) =>
+        g.MapGet("/{id:guid}", async (Guid id, CurrentUser me, BrewbookDbContext db, TimeProvider clock, CancellationToken ct) =>
         {
             var bean = await db.Beans.SingleOrDefaultAsync(b => b.Id == id && b.UserId == me.Id, ct);
-            return bean is null ? Results.NotFound() : Results.Ok((await Project(db, [bean], ct))[0]);
+            return bean is null ? Results.NotFound() : Results.Ok((await Project(db, [bean], clock, ct))[0]);
         });
 
         g.MapPost("/", async (CreateBeanRequest req, CurrentUser me, BrewbookDbContext db, TimeProvider clock, AchievementService achievements, CancellationToken ct) =>
@@ -47,24 +47,33 @@ public static class BeansEndpoints
                 Altitude = Clean(req.Altitude),
                 RoastLevel = Clean(req.RoastLevel),
                 DeclaredNotes = (req.DeclaredNotes ?? []).Select(n => n.Trim()).Where(n => n.Length > 0).Distinct().ToList(),
+                WeightG = req.WeightG is > 0 and <= 100_000 ? req.WeightG : null,
                 LabelScanId = Clean(req.LabelScanId),
                 LabelScannedAt = req.LabelScanId is null ? null : clock.GetUtcNow(),
                 CreatedAt = clock.GetUtcNow(),
             };
             db.Beans.Add(bean);
             await RoasterLinker.LinkAndSaveAsync(db, bean, clock, ct);
+            // A bag from a wished-for roaster clears the pin: it has done its job (§4).
+            if (bean.RoasterId is { } linked)
+            {
+                var wish = await db.RoasterWishes.FindAsync([me.Id, linked], ct);
+                if (wish is not null) { db.RoasterWishes.Remove(wish); await db.SaveChangesAsync(ct); }
+            }
             // Bag stamps show up on the passport; the bean response stays a bean.
             await achievements.EvaluateAsync(me.Id, null, ct);
-            return Results.Created($"/api/v1/beans/{bean.Id}", BeanResponse.From(bean, 0, null));
+            return Results.Created($"/api/v1/beans/{bean.Id}", BeanResponse.From(bean, 0, null, 0m, clock.GetUtcNow()));
         });
 
-        g.MapPatch("/{id:guid}", async (Guid id, UpdateBeanRequest req, CurrentUser me, BrewbookDbContext db, CancellationToken ct) =>
+        g.MapPatch("/{id:guid}", async (Guid id, UpdateBeanRequest req, CurrentUser me, BrewbookDbContext db, TimeProvider clock, CancellationToken ct) =>
         {
             var bean = await db.Beans.SingleOrDefaultAsync(b => b.Id == id && b.UserId == me.Id, ct);
             if (bean is null) return Results.NotFound();
             if (req.Archived is { } archived) bean.Archived = archived;
+            // Asked once, then never again for that bag, whichever way the user answered.
+            if (req.ArchivePromptAnswered is true && bean.ArchivePromptedAt is null) bean.ArchivePromptedAt = clock.GetUtcNow();
             await db.SaveChangesAsync(ct);
-            return Results.Ok((await Project(db, [bean], ct))[0]);
+            return Results.Ok((await Project(db, [bean], clock, ct))[0]);
         });
 
         g.MapPost("/scan", async (HttpRequest http, ILabelExtractor extractor, CancellationToken ct) =>
@@ -87,7 +96,7 @@ public static class BeansEndpoints
 
     private static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
-    private static async Task<List<BeanResponse>> Project(BrewbookDbContext db, List<Bean> beans, CancellationToken ct)
+    private static async Task<List<BeanResponse>> Project(BrewbookDbContext db, List<Bean> beans, TimeProvider clock, CancellationToken ct)
     {
         var ids = beans.Select(b => b.Id).ToList();
         var counts = await db.Brews.Where(br => ids.Contains(br.BeanId))
@@ -99,6 +108,12 @@ public static class BeansEndpoints
         var lasts = (await db.Brews.Where(br => ids.Contains(br.BeanId)).OrderByDescending(br => br.Number).ToListAsync(ct))
             .DistinctBy(br => br.BeanId)
             .ToDictionary(br => br.BeanId);
-        return beans.Select(b => BeanResponse.From(b, counts.GetValueOrDefault(b.Id), lasts.GetValueOrDefault(b.Id))).ToList();
+        // What the bag has actually given up: the doses brewed from it, which is the countdown's other half.
+        var dosed = await db.Brews.Where(br => ids.Contains(br.BeanId))
+            .GroupBy(br => br.BeanId)
+            .Select(gr => new { BeanId = gr.Key, Dosed = gr.Sum(x => x.DoseG) })
+            .ToDictionaryAsync(x => x.BeanId, x => x.Dosed, ct);
+        var now = clock.GetUtcNow();
+        return beans.Select(b => BeanResponse.From(b, counts.GetValueOrDefault(b.Id), lasts.GetValueOrDefault(b.Id), dosed.GetValueOrDefault(b.Id), now)).ToList();
     }
 }

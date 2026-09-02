@@ -1,12 +1,39 @@
-export const EyeGlyph = ({ onClick }: { onClick?: () => void }) => (
-  <button onClick={onClick} aria-label="Bean detail" style={{ padding: 4 }}>
-    <svg width="44" height="34" viewBox="0 0 64 44" fill="none" stroke="#c2905e" strokeWidth="2">
-      <path d="M4 22 Q32 -4 60 22 Q32 48 4 22 Z" />
-      <ellipse cx="32" cy="22" rx="9" ry="10" />
-      <path d="M32 13 q5 9 0 18" />
-    </svg>
-  </button>
-);
+import { useEffect, useState } from "react";
+
+const IDLE_MIN_MS = 55_000, IDLE_SPREAD_MS = 70_000;
+const TWITCHES = ["blink", "slowblink", "aside", "invert", "double"] as const;
+
+/**
+ * The eye is decoration with a job (§10): it is also the way into the current bag. It twitches
+ * only when nothing else is happening — never during a brew, a sheet or a rating — a minute or
+ * two apart, under a second, and not at all when the system asks for reduced motion.
+ */
+export const EyeGlyph = ({ onClick, idle = false }: { onClick?: () => void; idle?: boolean }) => {
+  const [twitch, setTwitch] = useState<string | null>(null);
+  useEffect(() => {
+    if (!idle) { setTwitch(null); return; }
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    let clear = 0;
+    const schedule = (): number => window.setTimeout(() => {
+      setTwitch(TWITCHES[Math.floor(Math.random() * TWITCHES.length)]);
+      clear = window.setTimeout(() => setTwitch(null), 900);
+      next = schedule();
+    }, IDLE_MIN_MS + Math.random() * IDLE_SPREAD_MS);
+    let next = schedule();
+    return () => { window.clearTimeout(next); window.clearTimeout(clear); };
+  }, [idle]);
+  return (
+    <button onClick={onClick} aria-label="Bean detail" style={{ padding: 4 }}>
+      <svg className={"eye" + (twitch ? " eye-" + twitch : "")} width="44" height="34" viewBox="0 0 64 44" fill="none" stroke="#c2905e" strokeWidth="2">
+        <path d="M4 22 Q32 -4 60 22 Q32 48 4 22 Z" />
+        <g className="iris">
+          <ellipse cx="32" cy="22" rx="9" ry="10" />
+          <path d="M32 13 q5 9 0 18" />
+        </g>
+      </svg>
+    </button>
+  );
+};
 
 export const WheelIcon = () => (
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#d8a86f" strokeWidth="1.4">
@@ -50,5 +77,38 @@ export const ScanEye = () => (
   <svg width="70" height="54" viewBox="0 0 72 52" fill="none" stroke="#d8a86f" strokeWidth="2">
     <path d="M8 26 Q36 -2 64 26 Q36 54 8 26 Z" />
     <g style={{ animation: "bb-spin 1.4s linear infinite", transformOrigin: "36px 26px" }}><circle cx="36" cy="26" r="14" strokeDasharray="4 7" /></g>
+  </svg>
+);
+
+export const TicketIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M2 6h20v4a2 2 0 0 0 0 4v4H2v-4a2 2 0 0 0 0-4V6Z" />
+    <line x1="12" y1="8" x2="12" y2="10" /><line x1="12" y1="14" x2="12" y2="16" />
+  </svg>
+);
+
+export const LibraryIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <rect x="3" y="3" width="5" height="18" /><rect x="10" y="3" width="5" height="18" />
+    <path d="M17.5 4.2 21.5 5.3 18.8 21.3 15 20.2Z" />
+  </svg>
+);
+
+export const MapIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path d="M12 22s7-6.4 7-12a7 7 0 1 0-14 0c0 5.6 7 12 7 12Z" /><circle cx="12" cy="10" r="2.6" />
+  </svg>
+);
+
+export const ProfileIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+  </svg>
+);
+
+export const FriendsIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <circle cx="9" cy="8" r="3.4" /><path d="M2.5 20c0-3.6 2.9-5.8 6.5-5.8s6.5 2.2 6.5 5.8" />
+    <path d="M16 5.2a3.4 3.4 0 0 1 0 6.4M17.5 14.6c2.4.5 4 2.5 4 5.4" />
   </svg>
 );

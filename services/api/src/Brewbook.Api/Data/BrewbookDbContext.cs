@@ -11,6 +11,9 @@ public sealed class BrewbookDbContext(DbContextOptions<BrewbookDbContext> option
     public DbSet<FlavourTag> FlavourTags => Set<FlavourTag>();
     public DbSet<Achievement> Achievements => Set<Achievement>();
     public DbSet<Roaster> Roasters => Set<Roaster>();
+    public DbSet<Friendship> Friendships => Set<Friendship>();
+    public DbSet<FriendInvite> FriendInvites => Set<FriendInvite>();
+    public DbSet<RoasterWish> RoasterWishes => Set<RoasterWish>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -21,6 +24,8 @@ public sealed class BrewbookDbContext(DbContextOptions<BrewbookDbContext> option
             e.Property(x => x.Email).HasMaxLength(320).IsRequired();
             e.HasIndex(x => x.Email).IsUnique();
             e.Property(x => x.DisplayName).HasMaxLength(200);
+            // Rating publishes by default (§5), for the users who already exist as much as for new ones.
+            e.Property(x => x.ShareRatedByDefault).HasDefaultValue(true);
         });
 
         b.Entity<Bean>(e =>
@@ -36,6 +41,7 @@ public sealed class BrewbookDbContext(DbContextOptions<BrewbookDbContext> option
             e.Property(x => x.Altitude).HasMaxLength(100);
             e.Property(x => x.RoastLevel).HasMaxLength(100);
             e.Property(x => x.LabelScanId).HasMaxLength(100);
+            e.Property(x => x.WeightG).HasPrecision(7, 1);
             e.HasIndex(x => new { x.UserId, x.Archived });
             e.HasIndex(x => x.RoasterId);
             e.HasOne(x => x.User).WithMany(u => u.Beans).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
@@ -76,6 +82,35 @@ public sealed class BrewbookDbContext(DbContextOptions<BrewbookDbContext> option
             e.HasKey(x => new { x.BrewId, x.Flavour });
             e.Property(x => x.Flavour).HasMaxLength(100);
             e.HasOne(x => x.Brew).WithMany(br => br.FlavourTags).HasForeignKey(x => x.BrewId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<Friendship>(e =>
+        {
+            e.ToTable("friendships");
+            // The ordered pair is the key, so a friendship cannot exist twice or in one direction only.
+            e.HasKey(x => new { x.LowUserId, x.HighUserId });
+            e.HasIndex(x => x.HighUserId);
+            e.HasOne(x => x.LowUser).WithMany().HasForeignKey(x => x.LowUserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.HighUser).WithMany().HasForeignKey(x => x.HighUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<FriendInvite>(e =>
+        {
+            e.ToTable("friend_invites");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Token).HasMaxLength(64).IsRequired();
+            e.HasIndex(x => x.Token).IsUnique();
+            e.Property(x => x.ToEmail).HasMaxLength(320);
+            e.HasIndex(x => x.ToEmail);
+            e.HasOne(x => x.FromUser).WithMany().HasForeignKey(x => x.FromUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<RoasterWish>(e =>
+        {
+            e.ToTable("roaster_wishes");
+            e.HasKey(x => new { x.UserId, x.RoasterId });
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Roaster).WithMany().HasForeignKey(x => x.RoasterId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<Achievement>(e =>

@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import { HomeBar, StatusBar, Star } from "../components/Chrome";
+import { Star } from "../components/Chrome";
 import { CameraIcon, MicIcon, WheelIcon } from "../components/Icons";
 import { useStore } from "../state/store";
 
@@ -57,7 +57,6 @@ export const Guide = () => {
 
   return (
     <div className="screen guide">
-      <StatusBar />
       <div className="nav">
         {i > 0 ? <button className="sqbtn" onClick={prev} aria-label="Previous card">←</button> : <div style={{ width: 44 }} />}
         <div className="title">GUIDE</div>
@@ -78,7 +77,6 @@ export const Guide = () => {
           ? <button className="cta" onClick={start}><span>START BREWING</span></button>
           : <button className="outline" onClick={next}>NEXT →</button>}
       </div>
-      <HomeBar />
     </div>
   );
 };

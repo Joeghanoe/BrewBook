@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { ExtractedField, LabelScan } from "../api/types";
-import { HomeBar, Rule, StatusBar } from "../components/Chrome";
+import { Rule } from "../components/Chrome";
 import { categoryOf, groupOf } from "../lib/flavours";
 import { useStore } from "../state/store";
 import { takeScanResult, type ScanResult } from "./Scan";
 
-type Key = "roaster" | "bean" | "origin" | "process" | "roastDate" | "producer" | "varietal" | "altitude" | "roastLevel";
+type Key = "roaster" | "bean" | "origin" | "process" | "roastDate" | "producer" | "varietal" | "altitude" | "roastLevel" | "weight";
 const FIELDS: { key: Key; label: string; required?: boolean; needHint?: string; type?: string }[] = [
   { key: "roaster", label: "ROASTER" },
   { key: "bean", label: "BEAN", required: true, needHint: "set — the bag needs a name" },
@@ -17,11 +17,21 @@ const FIELDS: { key: Key; label: string; required?: boolean; needHint?: string; 
   { key: "varietal", label: "VARIETAL" },
   { key: "altitude", label: "ALTITUDE" },
   { key: "roastLevel", label: "ROAST LEVEL" },
+  { key: "weight", label: "BAG WEIGHT" },
 ];
+
+/** "250g", "1 kg", "250" → grams. Skippable like any other field: no weight, no countdown (§7). */
+const grams = (raw: string): number | null => {
+  const m = raw.trim().toLowerCase().match(/^([\d.,]+)\s*(kg|g)?$/);
+  if (!m) return null;
+  const n = Number(m[1].replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return m[2] === "kg" ? n * 1000 : n;
+};
 
 const empty = (): LabelScan => {
   const m: ExtractedField = { value: null, provenance: "missing" };
-  return { scanId: "", extracted: false, reason: null, roaster: m, bean: m, origin: m, process: m, roastDate: m, producer: m, varietal: m, altitude: m, roastLevel: m, declaredNotes: [] };
+  return { scanId: "", extracted: false, reason: null, roaster: m, bean: m, origin: m, process: m, roastDate: m, producer: m, varietal: m, altitude: m, roastLevel: m, weight: m, declaredNotes: [] };
 };
 
 export const ScanForm = () => {
@@ -50,10 +60,13 @@ export const ScanForm = () => {
         name: values.bean.trim(), roaster: values.roaster || null, origin: values.origin || null, process: values.process || null,
         roastDate: values.roastDate || null, producer: values.producer || null, varietal: values.varietal || null,
         altitude: values.altitude || null, roastLevel: values.roastLevel || null, declaredNotes: notes,
+        weightG: grams(values.weight),
         labelScanId: scan.scanId || null,
       });
+      const first = s.beansOpen.length === 0;
       s.addBean(bean);
-      s.setScreen("library");
+      // The first bag lands on a ticket that is ready to brew (§7); later ones go back to the shelf.
+      s.setScreen(first ? "home" : "library");
       s.showToast(`${bean.name} added to the library`);
     } catch (e) {
       setSaving(false);
@@ -65,7 +78,6 @@ export const ScanForm = () => {
 
   return (
     <div className="screen">
-      <StatusBar />
       <div className="nav">
         <button className="sqbtn" onClick={() => s.setScreen("scan")} aria-label="Back">←</button>
         <div>
@@ -115,7 +127,6 @@ export const ScanForm = () => {
       <div style={{ padding: "0 22px 14px" }}>
         <button className="cta" onClick={save} disabled={saving} style={{ opacity: saving ? 0.6 : 1 }}><span>{saving ? "SAVING…" : "SAVE BAG"}</span></button>
       </div>
-      <HomeBar />
     </div>
   );
 };

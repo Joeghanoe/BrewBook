@@ -1,17 +1,9 @@
-import { useClock } from "../hooks/useClock";
 import { useStore } from "../state/store";
 
-export const StatusBar = () => {
-  const now = useClock();
-  return (
-    <div className="statusbar">
-      <span>{now}</span>
-      <div className="battery"><div /></div>
-    </div>
-  );
-};
-
-export const HomeBar = () => <div className="homebar"><div /></div>;
+/**
+ * The phone draws its own status bar, home indicator and safe areas (§9). Nothing here may
+ * redraw them; screens get their insets from `.screen` in styles.css.
+ */
 export const Grabber = () => <div className="grabber"><div /></div>;
 
 export const Rule = ({ label, right }: { label: string; right?: string }) => (

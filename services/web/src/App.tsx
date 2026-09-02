@@ -1,6 +1,10 @@
 import { Toast } from "./components/Chrome";
+import { useIsDesktop } from "./hooks/useIsPhone";
+import { TabBar } from "./components/TabBar";
 import { BeanDetail } from "./screens/BeanDetail";
+import { DesktopDoor } from "./screens/DesktopDoor";
 import { Guide } from "./screens/Guide";
+import { Friends } from "./screens/Friends";
 import { Home } from "./screens/Home";
 import { Library } from "./screens/Library";
 import { Passport } from "./screens/Passport";
@@ -11,13 +15,20 @@ import { ScanForm } from "./screens/ScanForm";
 import { Splash } from "./screens/Splash";
 import { Timer } from "./screens/Timer";
 import { WheelLayer } from "./screens/Wheel";
-import { useStore } from "./state/store";
+import { useStore, type Screen } from "./state/store";
+
+/** The bar is hidden only where the screen is a single task the user is inside of. */
+const BAR_SCREENS: Screen[] = ["home", "library", "roasters", "friends", "profile", "bean", "passport"];
+
+const showBar = (screen: Screen, wheelOpen: boolean) => BAR_SCREENS.includes(screen) && !wheelOpen;
 
 export const App = () => {
   const s = useStore();
+  const desktop = useIsDesktop();
+  if (desktop) return <DesktopDoor />;
   return (
     <div className="canvas">
-      <div className="shell">
+      <div className={"shell" + (showBar(s.screen, s.wheelOpen) ? " has-bar" : "")}>
         <div className="grain" />
         {s.screen === "splash" && <Splash />}
         {s.screen !== "splash" && s.loading && <Notice title="OPENING THE LOG" sub="fetching your bags and brews" />}
@@ -36,8 +47,9 @@ export const App = () => {
             {s.screen === "scan" && <Scan />}
             {s.screen === "scanform" && <ScanForm />}
             {s.screen === "passport" && <Passport />}
-
             {s.screen === "profile" && <Profile />}
+            {s.screen === "friends" && <Friends />}
+            {showBar(s.screen, s.wheelOpen) && <TabBar />}
             {s.wheelOpen && <WheelLayer />}
             {s.guideOpen && <Guide />}
           </>

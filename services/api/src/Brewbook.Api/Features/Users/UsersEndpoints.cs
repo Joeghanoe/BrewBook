@@ -13,6 +13,14 @@ public static class UsersEndpoints
         api.MapGet("/me", (CurrentUser me, ILabelExtractor labels, ISpeechTranscriber speech) =>
             Results.Ok(MeResponse.From(me.Required, Features(labels, speech))));
 
+        api.MapPatch("/me", async (UpdateMeRequest req, CurrentUser me, BrewbookDbContext db, ILabelExtractor labels, ISpeechTranscriber speech, CancellationToken ct) =>
+        {
+            var u = me.Required;
+            if (req.ShareRatedByDefault is { } share) u.ShareRatedByDefault = share;
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(MeResponse.From(u, Features(labels, speech)));
+        });
+
         // Stamps the first time only: a second call (another device, a retry) keeps the original time.
         api.MapPost("/me/onboarded", async (CurrentUser me, BrewbookDbContext db, TimeProvider clock, ILabelExtractor labels, ISpeechTranscriber speech, CancellationToken ct) =>
         {

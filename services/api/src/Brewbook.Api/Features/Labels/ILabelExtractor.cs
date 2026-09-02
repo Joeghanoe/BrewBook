@@ -81,7 +81,7 @@ public sealed class UnconfiguredLabelExtractor : ILabelExtractor
             ScanId: Guid.NewGuid().ToString("N"),
             Extracted: false,
             Reason: "Label reading is not configured on this deployment — fill the bag in by hand.",
-            missing, missing, missing, missing, missing, missing, missing, missing, missing,
+            missing, missing, missing, missing, missing, missing, missing, missing, missing, missing,
             DeclaredNotes: []));
     }
 }

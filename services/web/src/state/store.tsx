@@ -1,16 +1,19 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../api/client";
-import type { Bean, Brew, BrewParams, FlavourTag, Me, Unlocked } from "../api/types";
+import type { Bean, Brew, BrewParams, FlavourTag, Friends, Me, RoasterScope, Unlocked } from "../api/types";
 import { sameParams } from "../lib/format";
 
-export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "profile" | "roasters" | "passport";
+export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "profile" | "roasters" | "passport" | "friends";
 export type Sheet = null | "adjust" | "switcher";
+
+/** Whose numbers the ticket is carrying, until they have been brewed once and become the user's own. */
+export interface TicketSource { name: string; number: number }
 
 /** `label` names the action button; it reads UNDO when absent. */
 export interface Toast { msg: string; undo?: () => void; label?: string }
 
 export const METHOD_DEFAULTS: BrewParams = { grind: 4.5, doseG: 15, yieldG: 250, tempC: 94, blooms: 2 };
-const RATE_PROMPT_DELAY_MS = 6000;
+const STAMP_TOAST_DELAY_MS = 4600;
 const TOAST_MS = 4200;
 
 interface Store {
@@ -35,7 +38,9 @@ interface Store {
   base: BrewParams;
   setParam: (key: keyof BrewParams, value: number) => void;
   setParams: (p: BrewParams) => void;
-  loadParams: (p: BrewParams) => void;
+  /** `source` names whose numbers these are; the ticket says so until the first time they are brewed (§5). */
+  loadParams: (p: BrewParams, source?: TicketSource | null) => void;
+  ticketSource: TicketSource | null;
 
   commitBrew: (durationMs: number, pourMarkersMs: number[]) => Promise<void>;
   rateBrew: (brewId: string, rating: number | null, defects: string[] | null) => Promise<void>;
@@ -51,6 +56,20 @@ interface Store {
 
   addBean: (bean: Bean) => void;
   archiveBean: (id: string, archived: boolean) => Promise<void>;
+  /** Answers the archive prompt with "not yet": the bag stays open and is never asked about again. */
+  keepBean: (id: string) => Promise<void>;
+  setBrewPrivacy: (brewId: string, isPrivate: boolean) => Promise<void>;
+  setSharing: (share: boolean) => Promise<void>;
+
+  /** Whose roasters the map is showing. One control, defaulting to the user's own (§4). */
+  scope: RoasterScope;
+  setScope: (s: RoasterScope) => void;
+  friends: Friends | null;
+  friendsError: string | null;
+  loadFriends: () => Promise<void>;
+  /** An invitation token from the link the user followed, until it is accepted or dismissed. */
+  invite: string | null;
+  clearInvite: () => void;
 
   /** The guide covers whatever screen is underneath; it opens itself once per user, after the splash. */
   guideOpen: boolean;
@@ -86,8 +105,14 @@ export function StoreProvider({ children, showSplash = true }: { children: React
   // "auto" shows the guide while the server says the user has not seen it; the GUIDE link forces it open.
   const [guide, setGuide] = useState<"auto" | "open" | "closed">("auto");
   const [roasterFocus, setRoasterFocus] = useState<string | null>(null);
+  const [ticketSource, setTicketSource] = useState<TicketSource | null>(null);
+  const [scope, setScope] = useState<RoasterScope>("mine");
+  const [friends, setFriends] = useState<Friends | null>(null);
+  const [friendsError, setFriendsError] = useState<string | null>(null);
+  // A friendship starts with a link; following it is what puts the token in front of the app.
+  const [invite, setInvite] = useState<string | null>(() => new URLSearchParams(window.location.search).get("invite"));
   const toastT = useRef<number>(0);
-  const rateT = useRef<number>(0);
+  const stampT = useRef<number>(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -101,7 +126,7 @@ export function StoreProvider({ children, showSplash = true }: { children: React
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
-  useEffect(() => () => { window.clearTimeout(toastT.current); window.clearTimeout(rateT.current); }, []);
+  useEffect(() => () => { window.clearTimeout(toastT.current); window.clearTimeout(stampT.current); }, []);
 
   const beansOpen = useMemo(() => beans.filter((b) => !b.archived), [beans]);
   const beansArchived = useMemo(() => beans.filter((b) => b.archived), [beans]);
@@ -121,6 +146,7 @@ export function StoreProvider({ children, showSplash = true }: { children: React
     lastSeenBean.current = currentBean.id;
     setParamsState(currentBean.lastParams);
     setBase(currentBean.lastParams);
+    setTicketSource(null);
   }, [currentBean]);
 
   const brewsFor = useCallback((beanId: string) => brews.filter((b) => b.beanId === beanId), [brews]);
@@ -139,7 +165,7 @@ export function StoreProvider({ children, showSplash = true }: { children: React
   };
 
   const setParam = (key: keyof BrewParams, value: number) => setParamsState((p) => ({ ...p, [key]: value }));
-  const loadParams = (p: BrewParams) => setParamsState(p);
+  const loadParams = (p: BrewParams, source: TicketSource | null = null) => { setParamsState(p); setTicketSource(source); };
 
   const patchBean = (bean: Bean) => setBeans((bs) => bs.map((b) => (b.id === bean.id ? bean : b)));
 
@@ -153,9 +179,12 @@ export function StoreProvider({ children, showSplash = true }: { children: React
       setBrews((bs) => [brew, ...bs]);
       patchBean({ ...bean, brewCount: bean.brewCount + 1, lastBrewedAt: brew.brewedAt, lastParams: p });
       setBase(p);
+      setTicketSource(null);
       setTags([]);
+      // Rating is instant: the card comes up with the brew (§6). Undo sits quietly in the toast.
+      setRatePrompt(brew);
       showToast(`Brew N° ${brew.number} logged — ${msToClock(durationMs)}`, () => {
-        window.clearTimeout(rateT.current);
+        window.clearTimeout(stampT.current);
         setRatePrompt(null);
         setToast(null);
         void api.deleteBrew(brew.id).then(() => {
@@ -164,9 +193,9 @@ export function StoreProvider({ children, showSplash = true }: { children: React
           setBase(prevBase);
         }).catch(() => showToast("Could not undo — the brew stays logged"));
       });
-      window.clearTimeout(rateT.current);
+      window.clearTimeout(stampT.current);
       // The undo toast keeps its slot; a stamp earned by this brew shows once that has passed.
-      rateT.current = window.setTimeout(() => { setRatePrompt(brew); celebrate(brew.newlyUnlocked); }, RATE_PROMPT_DELAY_MS);
+      stampT.current = window.setTimeout(() => celebrate(brew.newlyUnlocked), STAMP_TOAST_DELAY_MS);
     } catch (e) {
       showToast(e instanceof ApiError ? `Not logged — ${e.message}` : "Not logged — the brew log could not be reached");
     }
@@ -212,6 +241,39 @@ export function StoreProvider({ children, showSplash = true }: { children: React
   const archiveBean = async (id: string, archived: boolean) => {
     try { patchBean(await api.archiveBean(id, archived)); } catch { showToast("Could not update the bag"); }
   };
+  const keepBean = async (id: string) => {
+    try { patchBean(await api.keepBean(id)); } catch { showToast("Could not update the bag"); }
+  };
+
+  const setBrewPrivacy = async (brewId: string, isPrivate: boolean) => {
+    try {
+      const updated = await api.setBrewPrivacy(brewId, isPrivate);
+      setBrews((bs) => bs.map((b) => (b.id === updated.id ? { ...b, isPrivate: updated.isPrivate } : b)));
+      showToast(isPrivate ? `N° ${updated.number} is private` : `N° ${updated.number} is shared with friends`);
+    } catch { showToast("Could not change who sees this brew"); }
+  };
+
+  const setSharing = async (share: boolean) => {
+    if (!me) return;
+    setMe({ ...me, shareRatedByDefault: share });
+    try { setMe(await api.setSharing(share)); }
+    catch { setMe({ ...me, shareRatedByDefault: !share }); showToast("Setting not saved"); }
+  };
+
+  // The token leaves the address bar with the invitation, so a reload does not reopen it.
+  const clearInvite = () => {
+    setInvite(null);
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("invite")) {
+      url.searchParams.delete("invite");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    }
+  };
+
+  const loadFriends = useCallback(async () => {
+    try { setFriends(await api.friends()); setFriendsError(null); }
+    catch (e) { setFriendsError(e instanceof ApiError ? e.message : "Your friends could not be reached."); }
+  }, []);
 
   const guideOpen = guide === "open" || (guide === "auto" && me?.onboardedAt === null);
   const openGuide = () => setGuide("open");
@@ -226,10 +288,12 @@ export function StoreProvider({ children, showSplash = true }: { children: React
   const value: Store = {
     loading, error, me, beans, brews, screen, setScreen, sheet, setSheet,
     currentBean, selectBean: setCurrentId, beansOpen, beansArchived, brewsFor, nextNumber,
-    params, base, setParam, setParams: setParamsState, loadParams,
+    params, base, setParam, setParams: setParamsState, loadParams, ticketSource,
     commitBrew, rateBrew, ratePrompt, dismissRatePrompt: () => setRatePrompt(null),
     tagTarget, wheelOpen, openWheel, closeWheel, tags, setTags,
-    addBean, archiveBean, guideOpen, openGuide, closeGuide, roasterFocus, setRoasterFocus, toast, showToast, refresh,
+    addBean, archiveBean, keepBean, setBrewPrivacy, setSharing,
+    scope, setScope, friends, friendsError, loadFriends, invite, clearInvite,
+    guideOpen, openGuide, closeGuide, roasterFocus, setRoasterFocus, toast, showToast, refresh,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

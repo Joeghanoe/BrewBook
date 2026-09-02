@@ -1,4 +1,4 @@
-import type { Brew, Roaster } from "../api/types";
+import type { Brew, Roaster, RoasterVoice } from "../api/types";
 
 /** The user's palate: liked flavours across every brew, most tagged first, ties alphabetical. */
 export const topLikedFlavours = (brews: Brew[], limit = 8): string[] => {
@@ -22,4 +22,25 @@ export const mapsUrl = (r: Roaster) => {
     return `https://www.google.com/maps/search/?api=1&query=${r.lat},${r.lng}`;
   }
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name + " coffee roaster")}`;
+};
+
+/**
+ * What a pin says: whose it is, the roaster, the overall rating (§4). A roaster several people
+ * disagree about keeps every one of their ratings — the app never averages people into a score,
+ * so the pin shows the best of them and the tap shows them all.
+ */
+export const pinVoice = (r: Roaster): RoasterVoice | null => {
+  if (r.voices.length === 0) return null;
+  const mine = r.voices.find((v) => v.isMe);
+  if (mine && mine.avgRating !== null) return mine;
+  const rated = r.voices.filter((v) => v.avgRating !== null);
+  if (rated.length > 0) return rated.reduce((best, v) => (v.avgRating! > best.avgRating! ? v : best));
+  return mine ?? r.voices[0];
+};
+
+/** A pin the user has not drunk and only means to visit reads differently from one they have. */
+export const pinKind = (r: Roaster): "mine" | "friend" | "wish" => {
+  if (r.mine) return "mine";
+  if (r.voices.length > 0) return "friend";
+  return "wish";
 };

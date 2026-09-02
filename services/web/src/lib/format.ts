@@ -105,3 +105,13 @@ export const sameAsLabel = (lastBrewedAt: string | null, now = new Date()): stri
 export const lastLabel = (lastBrewedAt: string | null, now = new Date()) => (lastBrewedAt ? whenLabel(lastBrewedAt, now) : "—");
 
 export const stars = (n: number) => (n ? "★".repeat(n) + "☆".repeat(5 - n) : "●");
+
+/**
+ * "≈ 4 brews left". An estimate, and it says so: it comes off the label weight minus the doses
+ * actually brewed, and a user who scoops straight from the bag will drift (§7).
+ */
+export const brewsLeftLabel = (brewsLeft: number | null): string | null => {
+  if (brewsLeft === null) return null;
+  if (brewsLeft === 0) return "empty by the numbers";
+  return `≈ ${brewsLeft} ${brewsLeft === 1 ? "brew" : "brews"} left`;
+};

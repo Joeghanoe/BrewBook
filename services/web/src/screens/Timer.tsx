@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { VoiceParse } from "../api/types";
-import { StatusBar } from "../components/Chrome";
 import { MicIcon } from "../components/Icons";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { LONG_PRESS_MS } from "../hooks/useLongPress";
@@ -50,7 +49,6 @@ export const Timer = () => {
 
   return (
     <div className="screen timer" onPointerDown={onDown} onPointerUp={onUp} onContextMenu={(e) => e.preventDefault()}>
-      <StatusBar />
       {!running && <button className="sqbtn exit" onClick={() => s.setScreen("home")} onPointerUp={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()} aria-label="Exit timer">✕</button>}
       <div className="timer-head">{running ? "✦ BREWING ✦" : "READY"}</div>
       <div className="timer-body">

@@ -300,7 +300,7 @@ public class RoastersApiTests
 
     private static async Task<BeanResponse> CreateBean(HttpClient c, string name, string? roaster)
     {
-        var res = await c.PostAsJsonAsync("/api/v1/beans", new CreateBeanRequest(name, roaster, "Huila, Colombia", "Washed", null, null, null, null, null, null, null));
+        var res = await c.PostAsJsonAsync("/api/v1/beans", new CreateBeanRequest(name, roaster, "Huila, Colombia", "Washed", null, null, null, null, null, null, null, null));
         res.EnsureSuccessStatusCode();
         return (await res.Content.ReadFromJsonAsync<BeanResponse>())!;
     }

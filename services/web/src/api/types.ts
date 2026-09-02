@@ -15,6 +15,8 @@ export interface Me {
   features: { labelReading: boolean; speechTranscription: boolean };
   /** When the first-sign-in guide was finished or skipped; null until then. */
   onboardedAt: string | null;
+  /** Whether a newly rated brew is visible to friends. Per-brew overrides sit on the brew. */
+  shareRatedByDefault: boolean;
 }
 
 export interface Bean {
@@ -30,6 +32,12 @@ export interface Bean {
   altitude: string | null;
   roastLevel: string | null;
   declaredNotes: string[];
+  /** Net weight off the label, in grams. Null when the label did not say. */
+  weightG: number | null;
+  /** Rough brews left at the current dose. Null without a weight — no weight, no countdown. */
+  brewsLeft: number | null;
+  /** The bag is empty or over a year off roast, and has not been asked about yet. */
+  askToArchive: boolean;
   archived: boolean;
   labelKept: boolean;
   createdAt: string;
@@ -49,6 +57,7 @@ export interface CreateBean {
   altitude?: string | null;
   roastLevel?: string | null;
   declaredNotes?: string[];
+  weightG?: number | null;
   labelScanId?: string | null;
 }
 
@@ -74,6 +83,8 @@ export interface Brew {
   defects: string[];
   flavourTags: FlavourTag[];
   brewedAt: string;
+  /** Kept out of friends' view. An unrated brew is never shared whatever this says. */
+  isPrivate: boolean;
   /** Empty on reads and on writes that earned nothing. */
   newlyUnlocked: Unlocked[];
 }
@@ -170,6 +181,22 @@ export interface Profile {
   roasters: ProfileRoaster[];
 }
 
+/** One person's word on a roaster. Ratings stay attributed and are never averaged across people. */
+export interface RoasterVoice {
+  userId: string;
+  name: string;
+  initials: string;
+  isMe: boolean;
+  bags: number;
+  brews: number;
+  avgRating: number | null;
+  topFlavours: string[];
+  dislikedFlavours: string[];
+  matchCount: number | null;
+}
+
+export type RoasterScope = "mine" | "friends" | "both";
+
 export interface Roaster {
   id: string;
   name: string;
@@ -184,6 +211,53 @@ export interface Roaster {
   topFlavours: string[];
   dislikedFlavours: string[];
   matchCount: number | null;
+  /** Everyone in scope who has drunk this roaster — the user first, then friends. */
+  voices: RoasterVoice[];
+  /** The user has a bag from here. False for a roaster only on the map through a friend. */
+  mine: boolean;
+  /** Pinned as somewhere to go. Clears itself once a bag from here is in the library. */
+  wished: boolean;
+}
+
+/** A friend's rated brew, which is all a recipe is: the five values, the time, the stars and the tags. */
+export interface SharedBrew {
+  id: string;
+  fromUserId: string;
+  fromName: string;
+  number: number;
+  beanName: string;
+  origin: string | null;
+  process: string | null;
+  declaredNotes: string[];
+  params: BrewParams;
+  durationMs: number;
+  rating: number;
+  flavourTags: FlavourTag[];
+  brewedAt: string;
+}
+
+export interface Friend {
+  userId: string;
+  name: string;
+  initials: string;
+  email: string | null;
+  since: string;
+  roasters: number;
+  sharedBrews: number;
+}
+
+export interface FriendInvite {
+  token: string;
+  fromName: string;
+  toEmail: string | null;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface Friends {
+  friends: Friend[];
+  sent: FriendInvite[];
+  received: FriendInvite[];
 }
 
 export interface Config {
@@ -220,5 +294,6 @@ export interface LabelScan {
   varietal: ExtractedField;
   altitude: ExtractedField;
   roastLevel: ExtractedField;
+  weight: ExtractedField;
   declaredNotes: DeclaredNote[];
 }

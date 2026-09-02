@@ -25,10 +25,11 @@
   --courier: 'Courier Prime', 'Courier New', monospace;
   --shadow-card: 0 10px 28px rgba(0, 0, 0, 0.55);
   --shadow-sheet: 0 -18px 44px rgba(0, 0, 0, 0.55);
+  --tabbar-h: 62px;
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--ink-canvas); color: var(--text); font-family: var(--grotesk); -webkit-font-smoothing: antialiased; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--grotesk); -webkit-font-smoothing: antialiased; }
 #root { min-height: 100%; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-align: inherit; }
 input { font: inherit; }
@@ -45,22 +46,25 @@ svg { display: block; }
 /* Phone shell: full-bleed on a phone, a 390×844 frame on anything wider. */
 .canvas { min-height: 100dvh; display: flex; align-items: center; justify-content: center; }
 .shell { position: relative; width: 100%; height: 100dvh; overflow: hidden; background: var(--bg); color: var(--text); user-select: none; -webkit-user-select: none; }
-@media (min-width: 480px) and (min-height: 900px) {
-  .canvas { padding: 36px 0; }
-  .shell { width: 390px; height: 844px; border-radius: 34px; border: 1px solid var(--copper-30); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); }
-}
-@media (min-width: 480px) and (max-height: 899px) {
+@media (min-width: 480px) {
   .shell { width: min(430px, 100%); }
 }
 
 .grain { position: absolute; inset: 0; pointer-events: none; z-index: 90; opacity: 0.45; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E"); }
 
-.screen { position: absolute; inset: 0; display: flex; flex-direction: column; animation: bb-fadeup 0.3s both; }
-.statusbar { display: flex; justify-content: space-between; align-items: center; padding: calc(16px + env(safe-area-inset-top)) 26px 6px; font: 600 14px var(--courier); color: rgba(233, 214, 174, 0.8); }
-.battery { width: 22px; height: 11px; border: 1px solid rgba(233, 214, 174, 0.7); border-radius: 2px; padding: 1px; }
-.battery > div { width: 70%; height: 100%; background: var(--copper); }
-.homebar { display: flex; justify-content: center; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
-.homebar > div { width: 120px; height: 4px; border-radius: 2px; background: rgba(233, 214, 174, 0.3); }
+.screen { position: absolute; inset: 0; display: flex; flex-direction: column; animation: bb-fadeup 0.3s both;
+  padding-top: calc(14px + env(safe-area-inset-top)); padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+.shell.has-bar .screen { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); }
+
+/* The bottom bar: one way to each destination, the same spot on every screen (§3). */
+.tabbar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 70; display: flex;
+  border-top: 1px solid var(--copper-30); background: rgba(28, 26, 33, 0.96);
+  padding-bottom: env(safe-area-inset-bottom); }
+.tab { flex: 1; min-height: var(--tabbar-h); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  color: var(--text-45); padding: 8px 0; }
+.tab > span { font: 700 9px var(--courier); letter-spacing: 2px; }
+.tab.on { color: var(--copper-light); }
+.tab.on > span { color: var(--text); }
 .grabber { display: flex; justify-content: center; }
 .grabber > div { width: 44px; height: 4px; border-radius: 2px; background: rgba(233, 214, 174, 0.25); }
 
@@ -70,7 +74,7 @@ svg { display: block; }
 
 .sqbtn { width: 44px; height: 44px; border: 1px solid rgba(194, 144, 94, 0.5); display: flex; align-items: center; justify-content: center; color: var(--copper-light); font-size: 16px; flex: none; }
 .title { font: 700 15px var(--grotesk); letter-spacing: 4px; color: var(--text); }
-.nav { display: flex; align-items: center; gap: 14px; padding: 10px 22px 0; }
+.nav { display: flex; align-items: center; gap: 14px; padding: 4px 22px 0; min-height: 44px; }
 .link { font: 700 10px var(--courier); letter-spacing: 3px; color: var(--copper-light); padding: 10px 0; }
 .hint { text-align: center; font: 400 12px var(--grotesk); color: var(--text-50); }
 
@@ -166,7 +170,6 @@ svg { display: block; }
 
 /* Timer */
 .timer { align-items: center; touch-action: none; cursor: pointer; }
-.timer .statusbar { width: 100%; }
 .timer .exit { position: absolute; top: calc(52px + env(safe-area-inset-top)); left: 22px; z-index: 5; }
 .timer-head { font: 700 11px var(--courier); letter-spacing: 4px; color: rgba(194, 144, 94, 0.9); margin-top: 64px; }
 .timer-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: -20px; }
@@ -422,3 +425,115 @@ a.act { text-decoration: none; }
 .notice { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 40px; text-align: center; }
 .notice .t { font: 700 11px var(--courier); letter-spacing: 3px; color: var(--copper-light); }
 .notice .s { font: 400 13px var(--grotesk); color: var(--text-55); }
+
+/* The hard wall: no bag, no brewing (§7). The ticket is shown empty so the task is obvious. */
+.firstbag { display: flex; flex-direction: column; flex: 1; padding: 0 20px 16px; min-height: 0; }
+.firstbag .ticket { margin: 18px 0 0; }
+.ticket.ghost { opacity: 0.42; filter: saturate(0.5); padding-bottom: 16px; }
+.ticket.ghost .cell .value { color: rgba(38, 36, 46, 0.45); }
+.firstbag-text { margin-top: 18px; text-align: center; font: 400 13px var(--grotesk); line-height: 1.5; color: var(--text-55); }
+
+/* The eye is alive between brews (§10): short, rare, never during anything else. */
+.eye .iris { transition: none; }
+.eye-blink { animation: bb-eye-blink 0.34s ease-in-out; }
+.eye-slowblink { animation: bb-eye-blink 0.85s ease-in-out; }
+.eye-double { animation: bb-eye-blink 0.28s ease-in-out 2; }
+.eye-aside .iris { animation: bb-eye-aside 0.9s ease-in-out; }
+.eye-invert { animation: bb-eye-invert 0.7s steps(1, end); }
+@keyframes bb-eye-blink { 0%, 100% { transform: scaleY(1); } 45% { transform: scaleY(0.06); } }
+@keyframes bb-eye-aside { 0%, 100% { transform: translateX(0); } 35%, 65% { transform: translateX(9px); } }
+@keyframes bb-eye-invert { 0%, 100% { fill: none; } 50% { fill: #c2905e; } }
+.eye { transform-origin: 32px 22px; }
+.eye .iris { transform-origin: 32px 22px; }
+@media (prefers-reduced-motion: reduce) {
+  .eye, .eye .iris { animation: none !important; }
+}
+
+/* --- The bottom bar's fifth destination fits five ------------------------- */
+.tab > span { font-size: 8.5px; letter-spacing: 1.4px; }
+
+/* A sheet rises above the screen, not above the bar: the bar is always reachable. */
+.shell.has-bar .sheet { padding-bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom)); }
+
+/* --- Friends (§5) -------------------------------------------------------- */
+.friends-body { flex: 1; overflow: auto; padding: 14px 22px 8px; display: flex; flex-direction: column; gap: 10px; }
+.friend-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(194, 144, 94, 0.15); min-height: 44px; width: 100%; text-align: left; }
+.friend-row .body { flex: 1; min-width: 0; }
+.friend-row .name { font: 600 14px var(--grotesk); color: var(--text); }
+.friend-row .sub { font: 400 11px var(--grotesk); color: var(--text-50); margin-top: 2px; }
+.friend-row .go { font: 700 10px var(--courier); letter-spacing: 2px; color: var(--copper-light); }
+.avatar { width: 38px; height: 38px; flex: none; border: 1px solid var(--copper-55); display: flex; align-items: center; justify-content: center;
+  font: 700 12px var(--courier); letter-spacing: 1px; color: var(--copper-light); background: rgba(194, 144, 94, 0.1); }
+.avatar.dashed { border-style: dashed; color: var(--text-50); }
+.avatar.me { background: var(--copper); color: var(--ink); border-color: var(--copper); }
+
+.invite-card { border: 1px solid var(--copper-55); background: rgba(194, 144, 94, 0.08); padding: 18px; animation: bb-fadeup 0.35s both; }
+.invite-card .kicker { font: 700 10px var(--courier); letter-spacing: 3px; color: var(--copper-light); }
+.invite-card .who { font: 700 22px var(--grotesk); letter-spacing: 1px; color: var(--text); margin-top: 8px; }
+.invite-card .sub { font: 400 13px var(--grotesk); line-height: 1.5; color: var(--text-75); margin-top: 8px; }
+.invite-card .acts { display: flex; align-items: center; gap: 14px; margin-top: 16px; }
+.invite-card .acts .cta { flex: 1; height: 52px; }
+
+.invite-form { display: flex; gap: 10px; margin-top: 10px; }
+.invite-form input { flex: 1; min-width: 0; height: 46px; background: var(--panel); border: 1px solid var(--copper-30); color: var(--text); padding: 0 12px; font: 400 13px var(--grotesk); }
+.invite-form input::placeholder { color: var(--text-45); }
+
+/* --- The map: whose roasters, and what a tap says (§4) -------------------- */
+.scope { display: flex; gap: 1px; margin: 12px 22px 0; border: 1px solid var(--copper-30); background: var(--copper-20); }
+.scope-btn { flex: 1; min-height: 40px; background: var(--bg); font: 700 10px var(--courier); letter-spacing: 2px; color: var(--text-50); }
+.scope-btn.on { background: var(--copper); color: var(--ink); }
+.roaster-row .pin.friend { background: var(--green); color: var(--ink); }
+.roaster-row .pin.wish { background: transparent; border: 1px dashed var(--copper-55); color: var(--copper-light); }
+
+.voice { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 0; border-bottom: 1px solid rgba(194, 144, 94, 0.15); min-height: 44px; }
+.voice .body { flex: 1; min-width: 0; }
+.voice .name { font: 600 14px var(--grotesk); color: var(--text); }
+.voice .sub { font: 400 11px var(--grotesk); color: var(--text-50); margin-top: 2px; }
+.voice .go { font: 700 13px var(--courier); color: var(--copper-light); flex: none; }
+.voice .score { flex: none; text-align: right; }
+.voice .score .stars { font-size: 11px; letter-spacing: 1px; }
+.voice .score .avg { font: 700 9px var(--courier); letter-spacing: 1px; color: var(--text-50); margin-top: 2px; }
+.voice .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.voice:disabled { opacity: 1; cursor: default; }
+
+.recipes { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; max-height: 46vh; overflow: auto; }
+.recipe { border: 1px solid var(--copper-30); padding: 14px; }
+.recipe .head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.recipe .bean { font: 600 14px var(--grotesk); color: var(--text); }
+.recipe .head .stars { font-size: 12px; color: var(--copper-light); letter-spacing: 2px; }
+.recipe .nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.recipe .num { border: 1px solid rgba(194, 144, 94, 0.2); padding: 6px 4px; text-align: center; }
+.recipe .num span { display: block; font: 700 8px var(--courier); letter-spacing: 1.5px; color: var(--text-45); }
+.recipe .num b { display: block; font: 600 15px var(--grotesk); color: var(--text); margin-top: 2px; }
+
+.act.on { border-color: var(--copper); color: var(--copper-light); background: rgba(194, 144, 94, 0.14); }
+.act.quiet { border-color: rgba(194, 144, 94, 0.35); color: var(--text-55); }
+
+/* --- The bag runs out, and gets asked about once (§7) --------------------- */
+.bag .left { font: 700 10px var(--courier); letter-spacing: 1.5px; color: var(--copper-light); margin-top: 8px; }
+.ask { margin: 14px 22px 0; border: 1px solid var(--copper-55); background: rgba(194, 144, 94, 0.08); padding: 14px 16px; animation: bb-fadeup 0.35s both; }
+.ask .t { font: 700 13px var(--grotesk); letter-spacing: 2px; color: var(--text); text-transform: uppercase; }
+.ask .s { font: 400 12px var(--grotesk); line-height: 1.5; color: var(--text-75); margin-top: 6px; }
+.ask .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+/* --- A setting is a row with a switch ------------------------------------ */
+.setting { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 14px 0; min-height: 44px; }
+.setting .body { flex: 1; min-width: 0; }
+.setting .name { font: 600 14px var(--grotesk); color: var(--text); }
+.setting .sub { font: 400 11px var(--grotesk); line-height: 1.45; color: var(--text-50); margin-top: 3px; }
+.switch { width: 48px; height: 28px; flex: none; border: 1px solid var(--copper-55); padding: 3px; display: flex; justify-content: flex-start; }
+.switch > div { width: 20px; height: 20px; background: var(--text-45); }
+.switch.on { background: rgba(194, 144, 94, 0.18); border-color: var(--copper); justify-content: flex-end; }
+.switch.on > div { background: var(--copper); }
+
+/* --- The desktop door (§9) ----------------------------------------------- */
+.door { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 48px 24px; text-align: center; background: var(--bg); }
+.door .mark { transform: scale(0.72); margin-bottom: -14px; }
+.door .wordmark { font: 700 34px var(--grotesk); letter-spacing: 12px; color: var(--text); margin: 0 0 0 12px; }
+.door .tagline { font: 700 10px var(--courier); letter-spacing: 4px; color: var(--copper); margin-top: 8px; }
+.door .blurb { max-width: 44ch; font: 400 15px var(--grotesk); line-height: 1.6; color: var(--text-75); margin: 26px 0 0; }
+.door .qr { margin-top: 30px; padding: 12px; background: var(--cream); box-shadow: var(--shadow-card); }
+.door .qr svg { display: block; }
+.door-link { margin-top: 20px; font: 700 14px var(--courier); letter-spacing: 2px; color: var(--copper-light); text-decoration: none; border-bottom: 1px solid var(--copper-30); padding-bottom: 3px; }
+.door-note { margin-top: 14px; font: 400 12px var(--grotesk); color: var(--text-50); }

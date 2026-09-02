@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { Profile as ProfileData, ProfileBean, ProfileRoaster } from "../api/types";
-import { HomeBar, Rule, StatusBar } from "../components/Chrome";
+import { Rule } from "../components/Chrome";
 import { describePreference, fmtTime, num, PARAMS, stars } from "../lib/format";
 import { useStore } from "../state/store";
 
@@ -22,12 +22,10 @@ export const Profile = () => {
 
   return (
     <div className="screen">
-      <StatusBar />
       <div className="nav">
-        <button className="sqbtn" onClick={() => s.setScreen("home")} aria-label="Back">←</button>
         <div className="title">PROFILE</div>
         <div style={{ flex: 1 }} />
-        <button className="link" onClick={() => s.setScreen("library")}>LIBRARY →</button>
+        <button className="link" onClick={s.openGuide}>GUIDE</button>
       </div>
       {state.kind === "loading" && <div className="empty" style={{ padding: "40px 22px", textAlign: "center" }}>Reading the log…</div>}
       {state.kind === "error" && (
@@ -37,7 +35,6 @@ export const Profile = () => {
         </div>
       )}
       {state.kind === "ready" && <Body p={state.data} />}
-      <HomeBar />
     </div>
   );
 };
@@ -81,6 +78,19 @@ const Body = ({ p }: { p: ProfileData }) => {
           {p.roasters.map((r) => <RoasterRow key={r.roaster} r={r} />)}
         </>
       )}
+
+      <button className="rule" style={{ margin: "22px 0 0", width: "100%", minHeight: 44 }} onClick={() => s.setScreen("passport")}>
+        <span>FLAVOUR PASSPORT</span><div className="line" /><span>STAMPS →</span>
+      </button>
+
+      <div style={{ marginTop: 22 }}><Rule label="SHARING" /></div>
+      <button className="setting" onClick={() => void s.setSharing(!s.me?.shareRatedByDefault)} aria-pressed={s.me?.shareRatedByDefault ?? true}>
+        <div className="body">
+          <div className="name">Share brews I rate</div>
+          <div className="sub">Rating one publishes it to your friends. Any brew can still be made private on its own.</div>
+        </div>
+        <div className={"switch" + (s.me?.shareRatedByDefault ? " on" : "")}><div /></div>
+      </button>
 
       <div className="signout">
         <a className="act" href={api.signOutUrl}>SIGN OUT →</a>

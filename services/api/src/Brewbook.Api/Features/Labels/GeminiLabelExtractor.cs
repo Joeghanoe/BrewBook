@@ -16,6 +16,7 @@ public sealed class GeminiLabelExtractor(GeminiClient gemini, ILogger<GeminiLabe
         - "bean" is the coffee's name (farm, lot or blend name), not the roaster.
         - "origin" is region and country, e.g. "Huila, Colombia".
         - "roast_date" is ISO yyyy-mm-dd; if only month and year are printed, use the 1st with confidence "partial".
+        - "weight" is the bag's net weight in grams, digits only ("250g" -> "250", "1kg" -> "1000").
         - "declared_notes" lists the tasting notes exactly as printed, one per entry, no prose.
         """;
 
@@ -25,10 +26,10 @@ public sealed class GeminiLabelExtractor(GeminiClient gemini, ILogger<GeminiLabe
         properties = new Dictionary<string, object>
         {
             ["roaster"] = Field(), ["bean"] = Field(), ["origin"] = Field(), ["process"] = Field(), ["roast_date"] = Field(),
-            ["producer"] = Field(), ["varietal"] = Field(), ["altitude"] = Field(), ["roast_level"] = Field(),
+            ["producer"] = Field(), ["varietal"] = Field(), ["altitude"] = Field(), ["roast_level"] = Field(), ["weight"] = Field(),
             ["declared_notes"] = new { type = "ARRAY", items = new { type = "STRING" } },
         },
-        required = new[] { "roaster", "bean", "origin", "process", "roast_date", "producer", "varietal", "altitude", "roast_level", "declared_notes" },
+        required = new[] { "roaster", "bean", "origin", "process", "roast_date", "producer", "varietal", "altitude", "roast_level", "weight", "declared_notes" },
     };
 
     private static object Field() => new
@@ -69,7 +70,7 @@ public sealed class GeminiLabelExtractor(GeminiClient gemini, ILogger<GeminiLabe
         return new LabelScanResponse(
             scanId, true, null,
             Map(raw.Roaster), Map(raw.Bean), Map(raw.Origin), Map(raw.Process), Map(raw.RoastDate),
-            Map(raw.Producer), Map(raw.Varietal), Map(raw.Altitude), Map(raw.RoastLevel),
+            Map(raw.Producer), Map(raw.Varietal), Map(raw.Altitude), Map(raw.RoastLevel), Map(raw.Weight),
             (raw.DeclaredNotes ?? []).Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim()).Distinct()
                 .Select(n => new DeclaredNote(n, FlavourLexicon.Categorise(n))).ToList());
     }
@@ -77,7 +78,7 @@ public sealed class GeminiLabelExtractor(GeminiClient gemini, ILogger<GeminiLabe
     private static LabelScanResponse Unreadable(string scanId, string reason)
     {
         var m = new ExtractedField(null, Provenance.Missing);
-        return new LabelScanResponse(scanId, false, reason, m, m, m, m, m, m, m, m, m, []);
+        return new LabelScanResponse(scanId, false, reason, m, m, m, m, m, m, m, m, m, m, []);
     }
 
     private static ExtractedField Map(RawField? f)
@@ -104,6 +105,6 @@ public sealed class GeminiLabelExtractor(GeminiClient gemini, ILogger<GeminiLabe
         RawField? Roaster, RawField? Bean, RawField? Origin, RawField? Process,
         [property: JsonPropertyName("roast_date")] RawField? RoastDate,
         RawField? Producer, RawField? Varietal, RawField? Altitude,
-        [property: JsonPropertyName("roast_level")] RawField? RoastLevel,
+        [property: JsonPropertyName("roast_level")] RawField? RoastLevel, RawField? Weight,
         [property: JsonPropertyName("declared_notes")] List<string>? DeclaredNotes);
 }

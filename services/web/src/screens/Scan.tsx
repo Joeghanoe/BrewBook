@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
-import { StatusBar } from "../components/Chrome";
 import { ScanEye } from "../components/Icons";
 import type { LabelScan } from "../api/types";
 import { useStore } from "../state/store";
@@ -71,7 +70,6 @@ export const Scan = () => {
 
   return (
     <div className="screen scan">
-      <StatusBar />
       <div className="nav">
         <button className="sqbtn" onClick={() => s.setScreen("library")} aria-label="Close">✕</button>
         <div className="title">SCAN LABEL</div>

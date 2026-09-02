@@ -41,6 +41,8 @@ public static class BrewsEndpoints
                 Grind = p.Grind, DoseG = p.DoseG, YieldG = p.YieldG, TempC = p.TempC, Blooms = p.Blooms,
                 DurationMs = req.DurationMs,
                 PourMarkersMs = (req.PourMarkersMs ?? []).Where(m => m >= 0).OrderBy(m => m).ToList(),
+                // Rating publishes; the default decides whether that reaches friends, per brew after this.
+                IsPrivate = !me.Required.ShareRatedByDefault,
                 BrewedAt = clock.GetUtcNow(),
             };
 
@@ -91,6 +93,16 @@ public static class BrewsEndpoints
             await db.SaveChangesAsync(ct);
             var unlocked = await achievements.EvaluateAsync(me.Id, brew.Id, ct);
             return Results.Ok(BrewResponse.From(brew, Unlocked(unlocked)));
+        });
+
+        // Any brew can be made private, per brew (§5). The workshop stays visible by default.
+        g.MapPatch("/{id:guid}/privacy", async (Guid id, SetBrewPrivacyRequest req, CurrentUser me, BrewbookDbContext db, CancellationToken ct) =>
+        {
+            var brew = await db.Brews.Include(b => b.FlavourTags).SingleOrDefaultAsync(b => b.Id == id && b.UserId == me.Id, ct);
+            if (brew is null) return Results.NotFound();
+            brew.IsPrivate = req.IsPrivate;
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(BrewResponse.From(brew));
         });
 
         g.MapPut("/{id:guid}/tags", async (Guid id, TagBrewRequest req, CurrentUser me, BrewbookDbContext db, AchievementService achievements, CancellationToken ct) =>
