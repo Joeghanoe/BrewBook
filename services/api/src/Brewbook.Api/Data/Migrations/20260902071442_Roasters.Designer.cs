@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Brewbook.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Brewbook.Api.Data.Migrations
 {
     [DbContext(typeof(BrewbookDbContext))]
-    partial class BrewbookDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260902071442_Roasters")]
+    partial class Roasters
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -240,9 +243,6 @@ namespace Brewbook.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
-
-                    b.Property<DateTimeOffset?>("OnboardedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 

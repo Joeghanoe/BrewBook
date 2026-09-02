@@ -16,6 +16,7 @@ export const Library = () => {
         <div className="title">BEAN LIBRARY</div>
         <div style={{ flex: 1 }} />
         <button className="link" style={{ minHeight: 44 }} onClick={s.openGuide}>GUIDE</button>
+        <button className="link" style={{ minHeight: 44 }} onClick={() => s.setScreen("roasters")}>MAP →</button>
       </div>
       <div style={{ overflow: "auto", flex: 1, display: "flex", flexDirection: "column" }}>
         <div style={{ margin: "18px 22px 0" }}><Rule label="OPEN BAGS" /></div>

@@ -21,6 +21,7 @@ public sealed record BeanResponse(
     Guid Id,
     string Name,
     string? Roaster,
+    Guid? RoasterId,
     string? Origin,
     string? Process,
     DateOnly? RoastDate,
@@ -38,7 +39,7 @@ public sealed record BeanResponse(
     BrewParamsDto LastParams)
 {
     public static BeanResponse From(Bean b, int brewCount, Brew? last) => new(
-        b.Id, b.Name, b.Roaster, b.Origin, b.Process, b.RoastDate, b.Producer, b.Varietal, b.Altitude, b.RoastLevel,
+        b.Id, b.Name, b.Roaster, b.RoasterId, b.Origin, b.Process, b.RoastDate, b.Producer, b.Varietal, b.Altitude, b.RoastLevel,
         b.DeclaredNotes, b.Archived, b.LabelScanId is not null, b.CreatedAt, brewCount, last?.BrewedAt,
         BrewParamsDto.From(last is null ? BrewParams.MethodDefaults : BrewParams.From(last)));
 }
@@ -57,6 +58,28 @@ public sealed record CreateBeanRequest(
     string? LabelScanId);
 
 public sealed record UpdateBeanRequest(bool? Archived);
+
+/// <summary>Everything the map needs. Location fields are null until the roaster is located; <c>Located</c> says which.</summary>
+public sealed record RoasterResponse(
+    Guid Id,
+    string Name,
+    string? Address,
+    double? Lat,
+    double? Lng,
+    bool Located,
+    string? Website,
+    int Bags,
+    int Brews,
+    /// <summary>Mean of the user's rated brews of this roaster's bags, one decimal. Null when none is rated.</summary>
+    double? AvgRating,
+    IReadOnlyList<string> TopFlavours,
+    IReadOnlyList<string> DislikedFlavours,
+    /// <summary>How many of the requested <c>flavours</c> this roaster's liked flavours contain. Null when no filter was given.</summary>
+    int? MatchCount);
+
+public sealed record RelocateRoasterRequest(string? Query);
+
+public sealed record ConfigResponse(string? MapsBrowserKey);
 
 public sealed record FlavourTagDto(string Flavour, int Polarity);
 

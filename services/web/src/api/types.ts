@@ -21,6 +21,7 @@ export interface Bean {
   id: string;
   name: string;
   roaster: string | null;
+  roasterId: string | null;
   origin: string | null;
   process: string | null;
   roastDate: string | null;
@@ -126,6 +127,26 @@ export interface Profile {
   beans: ProfileBean[];
   topBeans: ProfileBean[];
   roasters: ProfileRoaster[];
+}
+
+export interface Roaster {
+  id: string;
+  name: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  located: boolean;
+  website: string | null;
+  bags: number;
+  brews: number;
+  avgRating: number | null;
+  topFlavours: string[];
+  dislikedFlavours: string[];
+  matchCount: number | null;
+}
+
+export interface Config {
+  mapsBrowserKey: string | null;
 }
 
 export interface VoiceParse {
