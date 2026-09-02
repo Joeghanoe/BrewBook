@@ -83,6 +83,47 @@ public sealed record RateBrewRequest(int? Rating, IReadOnlyList<string>? Defects
 
 public sealed record TagBrewRequest(IReadOnlyList<FlavourTagDto> Tags);
 
+// Taste profile: derived from the user's brews and tags on every read, never stored.
+
+public sealed record ProfileFlavour(string Flavour, string Category, int Likes, int Dislikes, DateTimeOffset LastTaggedAt);
+
+public sealed record ProfileCategory(string Category, int Likes, int Dislikes);
+
+public sealed record ProfileFlavours(
+    IReadOnlyList<ProfileFlavour> Leaves,
+    /// <summary>Every wheel category in wheel order, zeros included.</summary>
+    IReadOnlyList<ProfileCategory> Categories,
+    IReadOnlyList<ProfileFlavour> TopLiked,
+    IReadOnlyList<ProfileFlavour> TopDisliked);
+
+public sealed record ProfileDefect(string Defect, int Count);
+
+public sealed record ProfilePreferences(
+    /// <summary>Medians over brews rated 4 or 5. Null until one exists.</summary>
+    BrewParamsDto? Preferred,
+    /// <summary>Medians over every brew. Null until one exists.</summary>
+    BrewParamsDto? Overall,
+    int RatedBrews,
+    int LikedBrews,
+    int? TypicalDurationMs,
+    IReadOnlyList<ProfileDefect> Defects);
+
+public sealed record ProfileBean(Guid BeanId, string Name, string? Roaster, bool Archived, int Brews, decimal? AvgRating, Guid? BestBrewId);
+
+public sealed record ProfileRoaster(string Roaster, int Bags, int Brews, decimal? AvgRating, IReadOnlyList<string> TopFlavours);
+
+public sealed record ProfileCounts(int Brews, int Bags, int Flavours, int DaysLogging);
+
+public sealed record ProfileResponse(
+    string Email,
+    string? DisplayName,
+    ProfileCounts Counts,
+    ProfileFlavours Flavours,
+    ProfilePreferences Preferences,
+    IReadOnlyList<ProfileBean> Beans,
+    IReadOnlyList<ProfileBean> TopBeans,
+    IReadOnlyList<ProfileRoaster> Roasters);
+
 public sealed record VoiceParseRequest(string Transcript, BrewParamsDto Current);
 
 public sealed record VoiceParseResponse(bool Applied, string Transcript, BrewParamsDto Params, IReadOnlyList<string> Changes, string Summary);
