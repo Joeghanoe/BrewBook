@@ -2,6 +2,7 @@ import { Toast } from "./components/Chrome";
 import { BeanDetail } from "./screens/BeanDetail";
 import { Home } from "./screens/Home";
 import { Library } from "./screens/Library";
+import { Passport } from "./screens/Passport";
 import { Scan } from "./screens/Scan";
 import { ScanForm } from "./screens/ScanForm";
 import { Splash } from "./screens/Splash";
@@ -30,6 +31,7 @@ export const App = () => {
             {s.screen === "library" && <Library />}
             {s.screen === "scan" && <Scan />}
             {s.screen === "scanform" && <ScanForm />}
+            {s.screen === "passport" && <Passport />}
             {s.wheelOpen && <WheelLayer />}
           </>
         )}

@@ -1,12 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../api/client";
-import type { Bean, Brew, BrewParams, FlavourTag, Me } from "../api/types";
+import type { Bean, Brew, BrewParams, FlavourTag, Me, Unlocked } from "../api/types";
 import { sameParams } from "../lib/format";
 
-export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform";
+export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "passport";
 export type Sheet = null | "adjust" | "switcher";
 
-export interface Toast { msg: string; undo?: () => void }
+/** `label` names the action button; it reads UNDO when absent. */
+export interface Toast { msg: string; undo?: () => void; label?: string }
 
 export const METHOD_DEFAULTS: BrewParams = { grind: 4.5, doseG: 15, yieldG: 250, tempC: 94, blooms: 2 };
 const RATE_PROMPT_DELAY_MS = 6000;
@@ -52,7 +53,7 @@ interface Store {
   archiveBean: (id: string, archived: boolean) => Promise<void>;
 
   toast: Toast | null;
-  showToast: (msg: string, undo?: () => void) => void;
+  showToast: (msg: string, undo?: () => void, label?: string) => void;
   refresh: () => Promise<void>;
 }
 
@@ -114,11 +115,17 @@ export function StoreProvider({ children, showSplash = true }: { children: React
   const brewsFor = useCallback((beanId: string) => brews.filter((b) => b.beanId === beanId), [brews]);
   const nextNumber = brews.reduce((m, b) => Math.max(m, b.number), 0) + 1;
 
-  const showToast = useCallback((msg: string, undo?: () => void) => {
+  const showToast = useCallback((msg: string, undo?: () => void, label?: string) => {
     window.clearTimeout(toastT.current);
-    setToast({ msg, undo });
+    setToast({ msg, undo, label });
     toastT.current = window.setTimeout(() => setToast(null), TOAST_MS);
   }, []);
+
+  // A stamp landed on the passport: say which, and offer the way there.
+  const celebrate = (unlocked: Unlocked[]) => {
+    if (unlocked.length === 0) return;
+    showToast(`✦ Passport stamped — ${unlocked.map((u) => u.title.toUpperCase()).join(", ")}`, () => { setToast(null); setScreen("passport"); }, "PASSPORT →");
+  };
 
   const setParam = (key: keyof BrewParams, value: number) => setParamsState((p) => ({ ...p, [key]: value }));
   const loadParams = (p: BrewParams) => setParamsState(p);
@@ -147,7 +154,8 @@ export function StoreProvider({ children, showSplash = true }: { children: React
         }).catch(() => showToast("Could not undo — the brew stays logged"));
       });
       window.clearTimeout(rateT.current);
-      rateT.current = window.setTimeout(() => setRatePrompt(brew), RATE_PROMPT_DELAY_MS);
+      // The undo toast keeps its slot; a stamp earned by this brew shows once that has passed.
+      rateT.current = window.setTimeout(() => { setRatePrompt(brew); celebrate(brew.newlyUnlocked); }, RATE_PROMPT_DELAY_MS);
     } catch (e) {
       showToast(e instanceof ApiError ? `Not logged — ${e.message}` : "Not logged — the brew log could not be reached");
     }
@@ -182,7 +190,8 @@ export function StoreProvider({ children, showSplash = true }: { children: React
     try {
       const updated = await api.tagBrew(tagTarget.id, tags);
       setBrews((bs) => bs.map((b) => (b.id === updated.id ? updated : b)));
-      showToast(n ? `${n} ${n === 1 ? "flavour" : "flavours"} tagged` : "Tags cleared");
+      if (updated.newlyUnlocked.length) celebrate(updated.newlyUnlocked);
+      else showToast(n ? `${n} ${n === 1 ? "flavour" : "flavours"} tagged` : "Tags cleared");
     } catch {
       showToast("Tags not saved");
     }

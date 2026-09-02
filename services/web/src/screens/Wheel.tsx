@@ -3,21 +3,11 @@ import { Grabber } from "../components/Chrome";
 import { useLongPress } from "../hooks/useLongPress";
 import { categoryOf, groupOf, WHEEL, type FlavourCategory } from "../lib/flavours";
 import { whenLabel } from "../lib/format";
+import { annular, polar, wedgeAngles, WHEEL_GEOMETRY } from "../lib/wheelGeometry";
 import { useStore } from "../state/store";
 
 const COPPER_FILL = "rgba(194,144,94,.07)", COPPER_FILL_ON = "rgba(194,144,94,.30)", COPPER_STROKE = "rgba(194,144,94,.55)";
 const RUST_FILL = "rgba(161,85,63,.22)", RUST_STROKE = "rgba(161,85,63,.7)";
-
-const polar = (cx: number, cy: number, r: number, deg: number) => {
-  const a = (deg * Math.PI) / 180;
-  return [cx + r * Math.cos(a), cy + r * Math.sin(a)] as const;
-};
-const annular = (cx: number, cy: number, ro: number, ri: number, a0: number, a1: number) => {
-  const [x0, y0] = polar(cx, cy, ro, a0), [x1, y1] = polar(cx, cy, ro, a1);
-  const [x2, y2] = polar(cx, cy, ri, a1), [x3, y3] = polar(cx, cy, ri, a0);
-  const large = a1 - a0 > 180 ? 1 : 0;
-  return `M ${x0.toFixed(1)} ${y0.toFixed(1)} A ${ro} ${ro} 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)} L ${x2.toFixed(1)} ${y2.toFixed(1)} A ${ri} ${ri} 0 ${large} 0 ${x3.toFixed(1)} ${y3.toFixed(1)} Z`;
-};
 
 interface Counts { pos: number; neg: number }
 const useCounts = () => {
@@ -41,7 +31,7 @@ export const WheelLayer = () => {
   const s = useStore();
   const [zoom, setZoom] = useState<FlavourCategory | null>(null);
   const { byCat, total } = useCounts();
-  const CX = 170, CY = 170, RO = 160, RI = 62, N = WHEEL.length, STEP = 360 / N;
+  const { cx: CX, cy: CY, ro: RO, ri: RI, size, viewBox } = WHEEL_GEOMETRY, N = WHEEL.length;
   const subtitle = s.tagTarget ? `${s.currentBean?.name ?? "bean"} — ${whenLabel(s.tagTarget.brewedAt).toLowerCase()} · N° ${s.tagTarget.number}` : "no brew logged yet — tags need a brew";
   const done = () => { setZoom(null); void s.closeWheel(); };
 
@@ -52,7 +42,8 @@ export const WheelLayer = () => {
         <Grabber />
         <div className="layer-title">
           <button className="sqbtn" onClick={zoom ? () => setZoom(null) : done} aria-label={zoom ? "Back" : "Close"}>{zoom ? "←" : "✕"}</button>
-          <div><div className="t">TAG FLAVOURS</div><div className="s">{subtitle}</div></div>
+          <div style={{ flex: 1, minWidth: 0 }}><div className="t">TAG FLAVOURS</div><div className="s">{subtitle}</div></div>
+          <button className="link" onClick={() => { done(); s.setScreen("passport"); }}>PASSPORT →</button>
         </div>
         {zoom ? (
           <ZoomView category={zoom} onBack={() => setZoom(null)} />
@@ -60,20 +51,20 @@ export const WheelLayer = () => {
           <>
             <div className="rule" style={{ margin: "14px 22px 0" }}><span>ALL FLAVOURS</span><div className="line" /><span className="dim">{total} TAGGED</span></div>
             <div style={{ display: "flex", justifyContent: "center", paddingTop: 8 }}>
-              <svg width="330" height="330" viewBox="-6 -6 352 352" fill="none" style={{ animation: "bb-pop .5s both" }}>
+              <svg width={size} height={size} viewBox={viewBox} fill="none" style={{ animation: "bb-pop .5s both" }}>
                 <g strokeWidth="1.2">
                   {WHEEL.map((c, i) => {
-                    const a0 = -90 + i * STEP, a1 = a0 + STEP;
+                    const { a0, a1 } = wedgeAngles(i, N);
                     const cnt = byCat.get(c.name);
                     return <path key={c.name} className="wedge" d={annular(CX, CY, RO, RI, a0, a1)} fill={fillFor(cnt)} stroke={strokeFor(cnt)} onClick={() => setZoom(c)} />;
                   })}
                 </g>
                 <g fontFamily="Space Grotesk" fontSize="11" fontWeight="600" letterSpacing="1.5" fill="#e9d6ae" textAnchor="middle" pointerEvents="none">
-                  {WHEEL.map((c, i) => { const [x, y] = polar(CX, CY, (RO + RI) / 2, -90 + (i + 0.5) * STEP); return <text key={c.name} x={x.toFixed(1)} y={(y + 4).toFixed(1)}>{c.name}</text>; })}
+                  {WHEEL.map((c, i) => { const [x, y] = polar(CX, CY, (RO + RI) / 2, wedgeAngles(i, N).mid); return <text key={c.name} x={x.toFixed(1)} y={(y + 4).toFixed(1)}>{c.name}</text>; })}
                 </g>
                 {WHEEL.map((c, i) => {
                   const cnt = byCat.get(c.name); if (!cnt || cnt.pos + cnt.neg === 0) return null;
-                  const [x, y] = polar(CX, CY, RO - 8, -90 + i * STEP + 6);
+                  const [x, y] = polar(CX, CY, RO - 8, wedgeAngles(i, N).a0 + 6);
                   const rust = cnt.pos === 0;
                   return (
                     <g key={c.name} pointerEvents="none" style={{ animation: "bb-pop .35s both", transformOrigin: `${x}px ${y}px` }}>

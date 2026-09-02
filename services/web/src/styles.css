@@ -184,7 +184,8 @@ svg { display: block; }
 .layer .grabber { padding: 10px 0 0; }
 .layer-title { display: flex; align-items: center; gap: 14px; padding: 4px 22px 0; }
 .layer-title .t { font: 700 15px var(--grotesk); letter-spacing: 4px; color: var(--text); }
-.layer-title .s { font: 400 12px var(--grotesk); color: var(--text-55); margin-top: 2px; }
+.layer-title .s { font: 400 12px var(--grotesk); color: var(--text-55); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.layer-title .link { flex: none; white-space: nowrap; }
 .crumbs { display: flex; align-items: center; gap: 10px; margin: 8px 22px 0; font: 700 10px var(--courier); letter-spacing: 3px; }
 .crumbs > button { color: rgba(233, 214, 174, 0.6); padding: 8px 4px; }
 .crumbs > .slash { color: rgba(194, 144, 94, 0.6); }
@@ -295,6 +296,27 @@ svg { display: block; }
 .note-chip.quote { background: transparent; border: 1px dashed var(--copper-45); color: rgba(233, 214, 174, 0.7); }
 .note-add { height: 40px; display: flex; align-items: center; padding: 0 14px; border: 1px dashed var(--copper-45); font: 500 13px var(--grotesk); color: var(--copper-light); }
 .note-add input { background: transparent; border: 0; color: var(--text); outline: none; width: 120px; font: 500 13px var(--grotesk); }
+
+/* Passport */
+.passport { flex: 1; overflow: auto; scrollbar-width: none; }
+.passport::-webkit-scrollbar { display: none; }
+.pp-panel { margin: 10px 22px 0; border: 1px solid var(--copper-30); background: rgba(194, 144, 94, 0.05); padding: 12px 14px 14px; animation: bb-fadeup 0.25s both; }
+.pp-panel .rule { min-height: 44px; }
+.pp-close { width: 44px; height: 44px; margin-right: -12px; display: flex; align-items: center; justify-content: center; color: var(--text-50); font-size: 14px; flex: none; }
+.pp-group { font: 700 9px var(--courier); letter-spacing: 3px; color: rgba(233, 214, 174, 0.5); margin: 10px 0 8px; }
+.pp-leaf { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 13px; border: 1px solid var(--copper); background: rgba(194, 144, 94, 0.16); font: 500 13px var(--grotesk); color: var(--text); }
+.pp-leaf > span { font: 700 9px var(--courier); letter-spacing: 1px; color: var(--copper-light); }
+.pp-leaf.off { border: 1px dashed rgba(194, 144, 94, 0.35); background: transparent; color: rgba(233, 214, 174, 0.4); }
+.pp-ledger { padding: 0 22px; }
+.pp-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--copper-20); min-height: 56px; }
+.pp-text { min-width: 0; }
+.pp-row .t { font: 700 13px var(--grotesk); letter-spacing: 2px; color: var(--text); text-transform: uppercase; }
+.pp-row .s { font: 400 12px var(--grotesk); color: var(--text-55); margin-top: 3px; }
+.pp-row.locked .t { color: rgba(233, 214, 174, 0.45); }
+.pp-row.locked .s { color: rgba(233, 214, 174, 0.35); }
+.pp-leader { flex: 1; height: 0; border-top: 1px dotted var(--copper-30); min-width: 16px; }
+.pp-count { font: 700 12px var(--courier); letter-spacing: 1px; color: rgba(233, 214, 174, 0.55); flex: none; font-variant-numeric: tabular-nums; }
+.pp-stamp { margin-left: auto; flex: none; font: 700 10px var(--courier); letter-spacing: 2px; border: 1.5px solid var(--copper-light); color: var(--copper-light); padding: 5px 8px; transform: rotate(-4deg); white-space: nowrap; }
 
 /* Toast */
 .toast { position: absolute; left: 22px; right: 22px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 80; background: var(--cream); color: var(--ink); padding: 14px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5); animation: bb-fadeup 0.25s both; }
