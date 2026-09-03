@@ -14,7 +14,7 @@ export const Splash = () => {
   }, [setScreen, landing]);
   return (
     <div className="screen splash" onClick={() => setScreen(landing)}>
-      <Seal />
+      <Seal draw />
       <div className="wordmark">BREWBOOK</div>
       <div className="tagline"><span style={{ fontSize: 8 }}>✦</span> A PERSONAL BREW LOG <span style={{ fontSize: 8 }}>✦</span></div>
       <div className="enter">TAP TO ENTER</div>

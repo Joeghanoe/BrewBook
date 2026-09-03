@@ -134,8 +134,26 @@ const SWEEP_MS = 600, SWEEP_HOLD_MS = 300;
  * The artwork never moves; only the clip does. The clip circles are driven from a frame loop
  * because animated props do not reach a ClipPath child reliably.
  */
-export const Seal = ({ scale = 1 }: { scale?: number }) => {
+const AP = Animated.createAnimatedComponent(Path);
+// Path lengths of the seal's three line groups, for the draw-in.
+const SEAL_LEN = { hex: 461, hole: 343, twists: 59 };
+
+/** `draw` makes the Penrose lines draw themselves once on mount, for the splash. The eye is untouched. */
+export const Seal = ({ scale = 1, draw = false }: { scale?: number; draw?: boolean }) => {
   const spin = useSpinTransform(26_000, 100, 118);
+  const drawn = useRef({ hex: new Animated.Value(draw ? 0 : 1), hole: new Animated.Value(draw ? 0 : 1), twists: new Animated.Value(draw ? 0 : 1) }).current;
+  useEffect(() => {
+    if (!draw) return;
+    let cancelled = false;
+    const run = (v: Animated.Value, duration: number, delay: number) => Animated.timing(v, { toValue: 1, duration, delay, easing: Easing.out(Easing.cubic), useNativeDriver: false });
+    AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (cancelled) return;
+      if (reduce) { drawn.hex.setValue(1); drawn.hole.setValue(1); drawn.twists.setValue(1); return; }
+      Animated.parallel([run(drawn.hex, 1400, 0), run(drawn.hole, 1400, 450), run(drawn.twists, 600, 850)]).start();
+    }).catch(() => Animated.parallel([run(drawn.hex, 1400, 0), run(drawn.hole, 1400, 450), run(drawn.twists, 600, 850)]).start());
+    return () => { cancelled = true; };
+  }, [draw, drawn]);
+  const offset = (v: Animated.Value, len: number) => v.interpolate({ inputRange: [0, 1], outputRange: [len, 0] });
   const [mask, setMask] = useState({ a: SWEEP_FROM, b: SWEEP_FROM });
   useEffect(() => {
     let cancelled = false;
@@ -176,7 +194,9 @@ export const Seal = ({ scale = 1 }: { scale?: number }) => {
         <ClipPath id="seal-b"><Circle cy={IRIS.cy} r={SWEEP_R} cx={mask.b} /></ClipPath>
       </Defs>
       <G stroke="#d8a86f" strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round">
-        <Path d={SEAL_HEX} /><Path d={SEAL_HOLE} /><Path d={SEAL_TWISTS} />
+        <AP d={SEAL_HEX} strokeDasharray={SEAL_LEN.hex} strokeDashoffset={offset(drawn.hex, SEAL_LEN.hex)} />
+        <AP d={SEAL_HOLE} strokeDasharray={SEAL_LEN.hole} strokeDashoffset={offset(drawn.hole, SEAL_LEN.hole)} />
+        <AP d={SEAL_TWISTS} strokeDasharray={SEAL_LEN.twists} strokeDashoffset={offset(drawn.twists, SEAL_LEN.twists)} />
       </G>
       <AG transform={spin}>
         <Circle cx={100} cy={118} r={26.6} stroke="#d8a86f" strokeOpacity={0.9} strokeWidth={1.4} strokeDasharray="5 5" />

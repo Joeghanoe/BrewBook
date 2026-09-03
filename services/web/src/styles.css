@@ -41,6 +41,7 @@ svg { display: block; }
 @keyframes bb-pulse { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(2.1); opacity: 0; } }
 @keyframes bb-glow { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
 @keyframes bb-sheet { from { transform: translateY(60px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes bb-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 @keyframes bb-pop { 0% { transform: scale(0.5); } 70% { transform: scale(1.07); } 100% { transform: scale(1); } }
 
 /* Phone shell: full-bleed on a phone, a 390×844 frame on anything wider. */
@@ -465,9 +466,14 @@ a.act { text-decoration: none; }
 .eye-aside .iris { animation: bb-eye-aside 0.9s ease-in-out; }
 @keyframes bb-eye-blink { 0%, 100% { transform: scaleY(1); } 45% { transform: scaleY(0.06); } }
 @keyframes bb-eye-aside { 0%, 100% { transform: translateX(0); } 35%, 65% { transform: translateX(9px); } }
+/* The splash seal draws its own lines: outline, then the hole, then the three twists. */
+.seal-draw path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: bb-draw 1.4s ease-out both; }
+.seal-draw path:nth-child(2) { animation-delay: 0.45s; }
+.seal-draw path:nth-child(3) { animation-delay: 0.85s; animation-duration: 0.6s; }
 .eye { transform-origin: 32px 22px; }
 .eye .iris { transform-origin: 32px 22px; }
 @media (prefers-reduced-motion: reduce) {
+  .seal-draw path { animation: none; stroke-dashoffset: 0; }
   .eye, .eye .iris { animation: none !important; }
 }
 

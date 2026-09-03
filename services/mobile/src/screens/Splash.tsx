@@ -20,7 +20,7 @@ export const Splash = () => {
   }, [setScreen, landing]);
   return (
     <Pressable style={st.splash} onPress={() => setScreen(landing)}>
-      <Seal />
+      <Seal draw />
       <FadeUp duration={1000} delay={300}><Text style={st.wordmark}>BREWBOOK</Text></FadeUp>
       <FadeUp duration={1000} delay={550} style={st.tagline}>
         <Text style={st.starSmall}>✦</Text><Text style={st.taglineText}>A PERSONAL BREW LOG</Text><Text style={st.starSmall}>✦</Text>

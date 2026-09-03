@@ -95,7 +95,8 @@ const SWEEP_FROM = IRIS.cx - (2 * SWEEP_R + 4);
  * covers (fill to gold, crease to dark), holds a moment, and a second sweep brings the dark back.
  * The artwork never moves; only the clip does. Drawn once per mount, so the ids stay unique.
  */
-export const Seal = () => {
+/** `draw` makes the Penrose lines draw themselves once on mount, for the splash. The eye is untouched. */
+export const Seal = ({ draw = false }: { draw?: boolean }) => {
   // One random rest per mount: 5–10 s dark, then 0.6 s in, 0.3 s hold, 0.6 s back.
   const t = useMemo(() => {
     const hold = 5 + Math.random() * 5, total = hold + 1.5;
@@ -120,8 +121,8 @@ export const Seal = () => {
         <clipPath id="seal-a"><circle cy={IRIS.cy} r={SWEEP_R} cx={SWEEP_FROM}>{sweep(t.a)}</circle></clipPath>
         <clipPath id="seal-b"><circle cy={IRIS.cy} r={SWEEP_R} cx={SWEEP_FROM}>{sweep(t.b)}</circle></clipPath>
       </defs>
-      <g stroke="#d8a86f" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round">
-        <path d={SEAL_HEX} /><path d={SEAL_HOLE} /><path d={SEAL_TWISTS} />
+      <g className={draw ? "seal-draw" : undefined} stroke="#d8a86f" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round">
+        <path d={SEAL_HEX} pathLength={1} /><path d={SEAL_HOLE} pathLength={1} /><path d={SEAL_TWISTS} pathLength={1} />
       </g>
       <g style={{ animation: "bb-spin 26s linear infinite", transformOrigin: "100px 118px" }}>
         <circle cx="100" cy="118" r="26.6" stroke="#d8a86f" strokeOpacity=".9" strokeWidth="1.4" strokeDasharray="5 5" />
