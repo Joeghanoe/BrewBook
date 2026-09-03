@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Rule } from "../components/Chrome";
+import { RateRow } from "../components/RateRow";
 import { daysOffRoast, describeDelta, describeFull, fmtTimeOrDash, stars, whenLabel } from "../lib/format";
 import { useStore } from "../state/store";
 
@@ -58,9 +59,11 @@ export const BeanDetail = () => {
                       {h.flavourTags.map((t) => (t.polarity < 0 ? "− " : "") + t.flavour).concat(h.defects.map((d) => `defect: ${d.toLowerCase()}`)).join(" · ")}
                     </div>
                   )}
+                  <RateRow brew={h} />
                   <div className="acts">
                     <button className="act" onClick={() => { s.loadParams(h.params); s.setScreen("home"); s.showToast("Loaded onto the brew ticket"); }}>BREW THIS AGAIN →</button>
                     <button className="act" onClick={() => s.openWheel(h)}>TAG FLAVOURS →</button>
+                    <button className="act" onClick={() => s.openBrewEdit(h)}>EDIT →</button>
                     {s.hasFriends && h.rating > 0 && (
                       <button className={"act" + (h.isPrivate ? " quiet" : " on")} onClick={() => void s.setBrewPrivacy(h.id, !h.isPrivate)}>
                         {h.isPrivate ? "PRIVATE" : "SHARED WITH FRIENDS"}

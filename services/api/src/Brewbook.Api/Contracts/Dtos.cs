@@ -220,8 +220,14 @@ public sealed record SetBrewPrivacyRequest(bool IsPrivate);
 /// <summary><c>durationMs</c> null or 0 logs the brew untimed; the time can be entered afterwards.</summary>
 public sealed record CreateBrewRequest(Guid BeanId, BrewParamsDto Params, int? DurationMs, IReadOnlyList<int>? PourMarkersMs);
 
-/// <summary>A brew after the fact. Every field is optional; null leaves it as it was.</summary>
-public sealed record UpdateBrewRequest(int? DurationMs);
+/// <summary>A brew after the fact. Every field is optional; null leaves it as it was. Rating 0 unrates.</summary>
+public sealed record UpdateBrewRequest(
+    int? DurationMs = null,
+    BrewParamsDto? Params = null,
+    DateTimeOffset? BrewedAt = null,
+    int? Rating = null,
+    IReadOnlyList<string>? Defects = null,
+    bool? IsPrivate = null);
 
 public sealed record RateBrewRequest(int? Rating, IReadOnlyList<string>? Defects);
 

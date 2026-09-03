@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../api/client";
-import type { Bean, Brew, BrewMethod, BrewParams, FlavourTag, Friends, Me, RoasterScope, Unlocked } from "../api/types";
-import { changedKeys, METHOD_DEFAULTS, fmtTime } from "../lib/format";
+import type { Bean, Brew, BrewMethod, BrewParams, FlavourTag, Friends, Me, RoasterScope, Unlocked, UpdateBrew } from "../api/types";
+import { changedKeys, METHOD_DEFAULTS, fmtTime, sameParams } from "../lib/format";
 
-export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "profile" | "roasters" | "passport" | "friends" | "beanedit";
+export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "profile" | "roasters" | "passport" | "friends" | "beanedit" | "brewedit";
 export type Sheet = null | "adjust" | "switcher" | "method";
 
 /** Whose numbers the ticket is carrying, until they have been brewed once and become the user's own. */
@@ -50,6 +50,13 @@ interface Store {
   /** The measured time for a brew logged without the timer. */
   setBrewDuration: (brewId: string, durationMs: number) => Promise<void>;
   rateBrew: (brewId: string, rating: number | null, defects: string[] | null) => Promise<void>;
+  /** The brew being edited; the edit screen reads it and sends the user back to the bean without one. */
+  editTarget: Brew | null;
+  openBrewEdit: (brew: Brew) => void;
+  /** Resolves true when the log took the change. */
+  updateBrew: (brewId: string, patch: UpdateBrew) => Promise<boolean>;
+  /** Tears the page out. The number stays unused; the bag's counts and last brew follow. */
+  deleteBrew: (brewId: string) => Promise<boolean>;
   ratePrompt: Brew | null;
   dismissRatePrompt: () => void;
 
@@ -108,6 +115,7 @@ export function StoreProvider({ children, showSplash = true }: { children: React
   const [params, setParamsState] = useState<BrewParams>(METHOD_DEFAULTS.filter);
   const [base, setBase] = useState<BrewParams>(METHOD_DEFAULTS.filter);
   const [ratePrompt, setRatePrompt] = useState<Brew | null>(null);
+  const [editTarget, setEditTarget] = useState<Brew | null>(null);
   const [tagTarget, setTagTarget] = useState<Brew | null>(null);
   const [wheelOpen, setWheelOpen] = useState(false);
   const [tags, setTags] = useState<FlavourTag[]>([]);
@@ -220,20 +228,75 @@ export function StoreProvider({ children, showSplash = true }: { children: React
 
   const setBrewDuration = async (brewId: string, durationMs: number) => {
     try {
-      const updated = await api.updateBrew(brewId, { durationMs });
-      setBrews((bs) => bs.map((b) => (b.id === updated.id ? updated : b)));
-      setRatePrompt((r) => (r?.id === updated.id ? updated : r));
+      foldBrew(await api.updateBrew(brewId, { durationMs }));
     } catch {
       showToast("Time not saved");
     }
   };
 
+  const foldBrew = (updated: Brew) => {
+    setBrews((bs) => bs.map((b) => (b.id === updated.id ? updated : b)));
+    setRatePrompt((r) => (r?.id === updated.id ? updated : r));
+    setEditTarget((t) => (t?.id === updated.id ? updated : t));
+  };
+
   const rateBrew = async (brewId: string, rating: number | null, defects: string[] | null) => {
     try {
       const updated = await api.rateBrew(brewId, rating, defects);
-      setBrews((bs) => bs.map((b) => (b.id === updated.id ? updated : b)));
+      foldBrew(updated);
+      if (updated.newlyUnlocked.length) celebrate(updated.newlyUnlocked);
     } catch {
       showToast("Rating not saved");
+    }
+  };
+
+  const openBrewEdit = (brew: Brew) => { setEditTarget(brew); setScreen("brewedit"); };
+
+  // The bag's summary follows its newest brew; when that brew changes or goes, so does the ticket's base.
+  const rebaseBean = (beanId: string, remaining: Brew[]) => {
+    const bean = beans.find((b) => b.id === beanId);
+    if (!bean) return;
+    const newest = remaining.filter((b) => b.beanId === beanId).sort((a, b) => b.number - a.number)[0] ?? null;
+    const lastParams = newest?.params ?? METHOD_DEFAULTS.filter;
+    patchBean({ ...bean, brewCount: remaining.filter((b) => b.beanId === beanId).length, lastBrewedAt: newest?.brewedAt ?? null, lastParams });
+    if (currentBean?.id === beanId) {
+      const untouched = sameParams(params, base);
+      setBase(lastParams);
+      if (untouched) setParamsState(lastParams);
+    }
+  };
+
+  const updateBrew = async (brewId: string, patch: UpdateBrew) => {
+    try {
+      const updated = await api.updateBrew(brewId, patch);
+      const next = brews.map((b) => (b.id === updated.id ? updated : b));
+      setBrews(next);
+      setRatePrompt((r) => (r?.id === updated.id ? updated : r));
+      setEditTarget((t) => (t?.id === updated.id ? updated : t));
+      rebaseBean(updated.beanId, next);
+      if (updated.newlyUnlocked.length) celebrate(updated.newlyUnlocked);
+      return true;
+    } catch (e) {
+      showToast(e instanceof ApiError ? `Not saved — ${e.message}` : "Not saved — the brew log could not be reached");
+      return false;
+    }
+  };
+
+  const deleteBrew = async (brewId: string) => {
+    const brew = brews.find((b) => b.id === brewId);
+    if (!brew) return false;
+    try {
+      await api.deleteBrew(brewId);
+      const next = brews.filter((b) => b.id !== brewId);
+      setBrews(next);
+      setRatePrompt((r) => (r?.id === brewId ? null : r));
+      setEditTarget((t) => (t?.id === brewId ? null : t));
+      rebaseBean(brew.beanId, next);
+      showToast(`N° ${String(brew.number).padStart(3, "0")} deleted`);
+      return true;
+    } catch {
+      showToast("Could not delete — the brew stays logged");
+      return false;
     }
   };
 
@@ -320,6 +383,7 @@ export function StoreProvider({ children, showSplash = true }: { children: React
     currentBean, selectBean: setCurrentId, beansOpen, beansArchived, brewsFor, nextNumber,
     params, base, setParam, setMethod, lastOfMethod, setParams: setParamsState, loadParams, ticketSource,
     commitBrew, setBrewDuration, rateBrew, ratePrompt, dismissRatePrompt: () => setRatePrompt(null),
+    editTarget, openBrewEdit, updateBrew, deleteBrew,
     tagTarget, wheelOpen, openWheel, closeWheel, tags, setTags,
     addBean, patchBean, archiveBean, keepBean, setBrewPrivacy, setSharing,
     hasFriends, scope: hasFriends ? scope : "mine", setScope, friends, friendsError, loadFriends,

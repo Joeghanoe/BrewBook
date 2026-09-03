@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Grabber, Rule, Star } from "../components/Chrome";
 import { EyeGlyph, WheelIcon } from "../components/Icons";
-import { changedKeys, daysOffRoast, durationDelta, fmtTime, lastLabel, METHOD_LABEL, METHODS, paramsFor, round1, sameAsLabel, val, whenLabel } from "../lib/format";
+import { RateRow } from "../components/RateRow";
+import { changedKeys, daysOffRoast, durationDelta, fmtTime, lastLabel, METHOD_LABEL, METHODS, paramsFor, parseClock, round1, sameAsLabel, val, whenLabel } from "../lib/format";
 import { useStore } from "../state/store";
-
-const DEFECTS = ["Sour", "Bitter", "Thin", "Harsh"];
 
 export const Home = () => {
   const s = useStore();
@@ -115,20 +114,9 @@ const FirstBag = () => {
 const RateCard = () => {
   const s = useStore();
   const brew = s.ratePrompt!;
-  const [defects, setDefects] = useState<string[]>(brew.defects);
   const [time, setTime] = useState("");
   const typed = parseClock(time);
   const saveTime = () => { if (typed !== null && typed > 0) void s.setBrewDuration(brew.id, typed); };
-  const toggle = (d: string) => {
-    const next = defects.includes(d) ? defects.filter((x) => x !== d) : [...defects, d];
-    setDefects(next);
-    void s.rateBrew(brew.id, null, next);
-  };
-  const pick = (n: number) => {
-    void s.rateBrew(brew.id, n, null);
-    s.dismissRatePrompt();
-    s.showToast("Rated " + "★".repeat(n));
-  };
   return (
     <div className="rate">
       <div className="rate-head">
@@ -146,11 +134,9 @@ const RateCard = () => {
       {brew.durationMs > 0 && durationDelta(brew.durationMs, brew.params.targetMs) && (
         <div className="rate-time"><span className="k">TIME</span><span className="v">{fmtTime(brew.durationMs)} · {durationDelta(brew.durationMs, brew.params.targetMs)} vs target</span></div>
       )}
-      <div className="stars">{[1, 2, 3, 4, 5].map((n) => <button key={n} onClick={() => pick(n)}>★</button>)}</div>
-      <div className="defects">
-        {DEFECTS.map((d) => <button key={d} className={"defect" + (defects.includes(d) ? " on" : "")} onClick={() => toggle(d)}>{d}</button>)}
+      <RateRow brew={brew} onPick={(n) => { if (n) s.dismissRatePrompt(); }}>
         <button className="tagcta" onClick={() => s.openWheel(brew)}>TAG FLAVOURS →</button>
-      </div>
+      </RateRow>
     </div>
   );
 };
@@ -180,16 +166,6 @@ const AdjustSheet = () => {
       </div>
     </>
   );
-};
-
-/** "2:41" · "241" (seconds) · "2 41" → ms; null while it is not a time yet. */
-export const parseClock = (raw: string): number | null => {
-  const t = raw.trim();
-  if (!t) return null;
-  const m = /^(\d{1,2})[:\s.](\d{1,2})$/.exec(t);
-  if (m) return Number(m[1]) * 60_000 + Number(m[2]) * 1000;
-  if (/^\d+$/.test(t)) return Number(t) * 1000;
-  return null;
 };
 
 /** One row per method: what switching would put on the ticket, so the choice is not blind. */

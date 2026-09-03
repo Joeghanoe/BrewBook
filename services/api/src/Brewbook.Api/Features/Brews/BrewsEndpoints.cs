@@ -70,26 +70,37 @@ public static class BrewsEndpoints
 
         g.MapDelete("/{id:guid}", async (Guid id, CurrentUser me, BrewbookDbContext db, CancellationToken ct) =>
         {
-            // Undo from the toast. Only the user's latest brew can be removed, so the sequence never gets holes.
+            // Undo from the toast, or a torn-out page from the log. The number is not reused: a hole in
+            // the sequence is what a deleted ticket looks like, and N° 042 keeps meaning one brew.
             var brew = await db.Brews.SingleOrDefaultAsync(b => b.Id == id && b.UserId == me.Id, ct);
             if (brew is null) return Results.NotFound();
-            var latest = await db.Brews.Where(b => b.UserId == me.Id).MaxAsync(b => b.Number, ct);
-            if (brew.Number != latest) return Results.Problem("Only the most recent brew can be undone.", statusCode: 409);
             db.Brews.Remove(brew);
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
         });
 
-        // The brew after the fact: for now only the measured time, for a brew logged without the timer.
-        g.MapPatch("/{id:guid}", async (Guid id, UpdateBrewRequest req, CurrentUser me, BrewbookDbContext db, CancellationToken ct) =>
+        // The brew after the fact: params, time, when, rating, privacy. Null leaves a field alone.
+        g.MapPatch("/{id:guid}", async (Guid id, UpdateBrewRequest req, CurrentUser me, BrewbookDbContext db, TimeProvider clock, AchievementService achievements, CancellationToken ct) =>
         {
-            if (req.DurationMs is { } d && !ValidDuration(d))
-                return Results.ValidationProblem(new Dictionary<string, string[]> { ["durationMs"] = [DurationMessage] });
+            var errors = ValidateUpdate(req, clock.GetUtcNow());
+            if (errors.Count > 0) return Results.ValidationProblem(errors);
+
             var brew = await db.Brews.Include(b => b.FlavourTags).SingleOrDefaultAsync(b => b.Id == id && b.UserId == me.Id, ct);
             if (brew is null) return Results.NotFound();
+            if (req.Params is { } dto)
+            {
+                var p = dto.ToDomain().Normalised();
+                brew.Method = p.Method; brew.Grind = p.Grind; brew.DoseG = p.DoseG; brew.YieldG = p.YieldG; brew.TempC = p.TempC;
+                brew.Blooms = p.Blooms; brew.PreInfusionS = p.PreInfusionS; brew.TargetMs = p.TargetMs;
+            }
             if (req.DurationMs is { } duration) brew.DurationMs = duration;
+            if (req.BrewedAt is { } at) brew.BrewedAt = at;
+            if (req.Rating is { } rating) brew.Rating = rating;
+            if (req.Defects is { } defects) brew.Defects = defects.Distinct().ToList();
+            if (req.IsPrivate is { } isPrivate) brew.IsPrivate = isPrivate;
             await db.SaveChangesAsync(ct);
-            return Results.Ok(BrewResponse.From(brew));
+            var unlocked = await achievements.EvaluateAsync(me.Id, brew.Id, ct);
+            return Results.Ok(BrewResponse.From(brew, Unlocked(unlocked)));
         });
 
         g.MapPatch("/{id:guid}/rating", async (Guid id, RateBrewRequest req, CurrentUser me, BrewbookDbContext db, AchievementService achievements, CancellationToken ct) =>
@@ -151,8 +162,27 @@ public static class BrewsEndpoints
     private static Dictionary<string, string[]> Validate(CreateBrewRequest req)
     {
         var e = new Dictionary<string, string[]>();
-        var p = req.Params;
-        if (p is null) { e["params"] = ["Params are required."]; return e; }
+        if (req.Params is null) { e["params"] = ["Params are required."]; return e; }
+        ValidateParams(req.Params, e);
+        if (req.DurationMs is { } d && !ValidDuration(d)) e["durationMs"] = [DurationMessage];
+        return e;
+    }
+
+    private static Dictionary<string, string[]> ValidateUpdate(UpdateBrewRequest req, DateTimeOffset now)
+    {
+        var e = new Dictionary<string, string[]>();
+        if (req.Params is { } p) ValidateParams(p, e);
+        if (req.DurationMs is { } d && !ValidDuration(d)) e["durationMs"] = [DurationMessage];
+        // A little clock skew is fine; a brew from next week is not.
+        if (req.BrewedAt is { } at && (at > now.AddMinutes(5) || at.Year < 2000)) e["brewedAt"] = ["Brewed-at must be in the past."];
+        if (req.Rating is { } r && (r < 0 || r > 5)) e["rating"] = ["Rating must be 0–5."];
+        var unknown = (req.Defects ?? []).Where(x => !KnownDefects.Contains(x)).ToList();
+        if (unknown.Count > 0) e["defects"] = [$"Unknown defects: {string.Join(", ", unknown)}."];
+        return e;
+    }
+
+    private static void ValidateParams(BrewParamsDto p, Dictionary<string, string[]> e)
+    {
         if (!Enum.IsDefined(p.Method)) e["params.method"] = ["Unknown brew method."];
         if (p.Grind < 0 || p.Grind > 100) e["params.grind"] = ["Grind must be 0–100."];
         if (p.DoseG <= 0 || p.DoseG > 500) e["params.doseG"] = ["Dose must be 0–500 g."];
@@ -161,7 +191,5 @@ public static class BrewsEndpoints
         if (p.Blooms < 0 || p.Blooms > 20) e["params.blooms"] = ["Blooms must be 0–20."];
         if (p.PreInfusionS is < 0 or > 60) e["params.preInfusionS"] = ["Pre-infusion must be 0–60 s."];
         if (!ValidDuration(p.TargetMs)) e["params.targetMs"] = ["Target time must be under an hour."];
-        if (req.DurationMs is { } d && !ValidDuration(d)) e["durationMs"] = [DurationMessage];
-        return e;
     }
 }

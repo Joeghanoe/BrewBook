@@ -113,7 +113,7 @@ public class ApiTests
     }
 
     [Fact]
-    public async Task Only_the_latest_brew_can_be_undone()
+    public async Task Any_brew_can_be_deleted_and_the_number_gap_stays()
     {
         using var f = new ApiFactory();
         var c = f.ClientFor("ada@example.com");
@@ -121,10 +121,64 @@ public class ApiTests
         var b1 = await CreateBrew(c, bean.Id);
         var b2 = await CreateBrew(c, bean.Id);
 
-        Assert.Equal(HttpStatusCode.Conflict, (await c.DeleteAsync($"/api/v1/brews/{b1.Id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await c.DeleteAsync($"/api/v1/brews/{b2.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await c.DeleteAsync($"/api/v1/brews/{b1.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await c.DeleteAsync($"/api/v1/brews/{b1.Id}")).StatusCode);
         var b3 = await CreateBrew(c, bean.Id);
-        Assert.Equal(2, b3.Number);
+        Assert.Equal(3, b3.Number);
+        var left = await c.GetFromJsonAsync<List<BrewResponse>>("/api/v1/brews", Json);
+        Assert.Equal([3, 2], left!.Select(b => b.Number).ToArray());
+        Assert.Equal(b2.Id, left![1].Id);
+
+        var bob = f.ClientFor("bob@example.com");
+        Assert.Equal(HttpStatusCode.NotFound, (await bob.DeleteAsync($"/api/v1/brews/{b2.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Editing_a_brew_updates_params_duration_and_brewed_at()
+    {
+        using var f = new ApiFactory();
+        var c = f.ClientFor("ada@example.com");
+        var bean = await CreateBean(c, "El Carmen");
+        var brew = await CreateBrew(c, bean.Id);
+        var at = new DateTimeOffset(2026, 9, 1, 8, 2, 0, TimeSpan.Zero);
+
+        var res = await c.PatchAsJsonAsync($"/api/v1/brews/{brew.Id}", new UpdateBrewRequest(
+            DurationMs: 171_000,
+            Params: Defaults with { TempC = 93m, Grind = 4.0m, Method = BrewMethod.Espresso, PreInfusionS = 8 },
+            BrewedAt: at, Rating: 4, Defects: ["Bitter"]), Json);
+        res.EnsureSuccessStatusCode();
+        var edited = (await res.Content.ReadFromJsonAsync<BrewResponse>(Json))!;
+        Assert.Equal(171_000, edited.DurationMs);
+        Assert.Equal(93m, edited.Params.TempC);
+        Assert.Equal(BrewMethod.Espresso, edited.Params.Method);
+        Assert.Equal(0, edited.Params.Blooms);
+        Assert.Equal(8, edited.Params.PreInfusionS);
+        Assert.Equal(at, edited.BrewedAt);
+        Assert.Equal(4, edited.Rating);
+        Assert.Equal(["Bitter"], edited.Defects);
+        Assert.Equal(brew.Number, edited.Number);
+
+        var future = await c.PatchAsJsonAsync($"/api/v1/brews/{brew.Id}", new UpdateBrewRequest(BrewedAt: DateTimeOffset.UtcNow.AddDays(2)), Json);
+        Assert.Equal(HttpStatusCode.BadRequest, future.StatusCode);
+        var badDefect = await c.PatchAsJsonAsync($"/api/v1/brews/{brew.Id}", new UpdateBrewRequest(Defects: ["Muddy"]), Json);
+        Assert.Equal(HttpStatusCode.BadRequest, badDefect.StatusCode);
+
+        var bob = f.ClientFor("bob@example.com");
+        var other = await bob.PatchAsJsonAsync($"/api/v1/brews/{brew.Id}", new UpdateBrewRequest(Rating: 5), Json);
+        Assert.Equal(HttpStatusCode.NotFound, other.StatusCode);
+    }
+
+    [Fact]
+    public async Task Rating_zero_unrates()
+    {
+        using var f = new ApiFactory();
+        var c = f.ClientFor("ada@example.com");
+        var bean = await CreateBean(c, "El Carmen");
+        var brew = await CreateBrew(c, bean.Id);
+        var rated = (await (await c.PatchAsJsonAsync($"/api/v1/brews/{brew.Id}", new UpdateBrewRequest(Rating: 3), Json)).Content.ReadFromJsonAsync<BrewResponse>(Json))!;
+        Assert.Equal(3, rated.Rating);
+        var unrated = (await (await c.PatchAsJsonAsync($"/api/v1/brews/{brew.Id}", new UpdateBrewRequest(Rating: 0), Json)).Content.ReadFromJsonAsync<BrewResponse>(Json))!;
+        Assert.Equal(0, unrated.Rating);
     }
 
     [Fact]

@@ -161,3 +161,31 @@ export const brewsLeftLabel = (brewsLeft: number | null): string | null => {
   if (brewsLeft === 0) return "empty by the numbers";
   return `≈ ${brewsLeft} ${brewsLeft === 1 ? "brew" : "brews"} left`;
 };
+
+/** "2:41" · "241" (seconds) · "2 41" → ms; null while it is not a time yet. */
+export const parseClock = (raw: string): number | null => {
+  const t = raw.trim();
+  if (!t) return null;
+  const m = /^(\d{1,2})[:\s.](\d{1,2})$/.exec(t);
+  if (m) return Number(m[1]) * 60_000 + Number(m[2]) * 1000;
+  if (/^\d+$/.test(t)) return Number(t) * 1000;
+  return null;
+};
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** "2026-09-01 08:02" in local time — the brewed-at field, as typed and as shown. `sep` is "T" for a datetime-local input. */
+export const fmtLocalDateTime = (iso: string, sep = " "): string => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}${sep}${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+
+/** "2026-09-01 08:02" or "2026-09-01T08:02" (local) → ISO instant; null when it does not read as a date and time. */
+export const parseLocalDateTime = (raw: string): string | null => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{1,2}):(\d{2})$/.exec(raw.trim());
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+  if (Number.isNaN(d.getTime()) || d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[3])) return null;
+  return d.toISOString();
+};

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { changedKeys, daysOffRoast, describeDelta, describeFull, describePreference, durationDelta, fmtTime, fmtTimeOrDash, METHOD_DEFAULTS, paramsFor, sameParams, whenLabel, sameAsLabel } from "./format";
+import { changedKeys, daysOffRoast, describeDelta, describeFull, describePreference, durationDelta, fmtLocalDateTime, fmtTime, fmtTimeOrDash, METHOD_DEFAULTS, paramsFor, parseClock, parseLocalDateTime, sameAsLabel, sameParams, whenLabel } from "./format";
 
 const now = new Date(2026, 8, 1, 9, 41); // 1 Sep 2026, Tuesday
 
@@ -72,5 +72,20 @@ describe("format", () => {
     expect(whenLabel(new Date(2026, 7, 27, 8, 2).toISOString(), now)).toBe("THURSDAY");
     expect(whenLabel(new Date(2026, 7, 12, 8, 2).toISOString(), now)).toBe("12 AUG");
     expect(sameAsLabel(new Date(2026, 7, 31, 8, 2).toISOString(), now)).toBe("same as yesterday, 08:02");
+  });
+
+  it("reads a typed time and a typed date", () => {
+    expect(parseClock("2:41")).toBe(161_000);
+    expect(parseClock("2 41")).toBe(161_000);
+    expect(parseClock("150")).toBe(150_000);
+    expect(parseClock("")).toBeNull();
+    expect(parseClock("two")).toBeNull();
+    const iso = parseLocalDateTime("2026-09-01 08:02");
+    expect(iso).toBe(new Date(2026, 8, 1, 8, 2).toISOString());
+    expect(parseLocalDateTime("2026-09-01T08:02")).toBe(iso);
+    expect(parseLocalDateTime("2026-02-30 08:02")).toBeNull();
+    expect(parseLocalDateTime("yesterday")).toBeNull();
+    expect(fmtLocalDateTime(iso!)).toBe("2026-09-01 08:02");
+    expect(fmtLocalDateTime(iso!, "T")).toBe("2026-09-01T08:02");
   });
 });

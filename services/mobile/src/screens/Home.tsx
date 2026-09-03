@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { FadeUp } from "../components/Anim";
-import { Backdrop, Cta, DashedRule, Defect, Empty, Hint, Outline, Sheet, SheetHead, Spacer } from "../components/Chrome";
+import { Backdrop, Cta, DashedRule, Empty, Hint, Outline, Sheet, SheetHead, Spacer } from "../components/Chrome";
 import { EyeGlyph, WheelIcon } from "../components/Icons";
+import { RateRow } from "../components/RateRow";
 import { Screen } from "../components/Chrome";
 import { Cell, Perforation, Ticket, TicketFoot, TicketGrid, TicketHead, TicketMethod } from "../components/Ticket";
-import { changedKeys, daysOffRoast, durationDelta, fmtTime, lastLabel, METHOD_LABEL, METHODS, paramsFor, round1, sameAsLabel, val, whenLabel } from "../lib/format";
+import { changedKeys, daysOffRoast, durationDelta, fmtTime, lastLabel, METHOD_LABEL, METHODS, paramsFor, parseClock, round1, sameAsLabel, val, whenLabel } from "../lib/format";
 import { useStore } from "../state/store";
 import { c, g, tabular } from "../theme/text";
 import { C } from "../theme/tokens";
-
-const DEFECTS = ["Sour", "Bitter", "Thin", "Harsh"];
 
 export const Home = () => {
   const s = useStore();
@@ -103,20 +102,9 @@ const FirstBag = () => {
 const RateCard = () => {
   const s = useStore();
   const brew = s.ratePrompt!;
-  const [defects, setDefects] = useState<string[]>(brew.defects);
   const [time, setTime] = useState("");
   const typed = parseClock(time);
   const saveTime = () => { if (typed !== null && typed > 0) void s.setBrewDuration(brew.id, typed); };
-  const toggle = (d: string) => {
-    const next = defects.includes(d) ? defects.filter((x) => x !== d) : [...defects, d];
-    setDefects(next);
-    void s.rateBrew(brew.id, null, next);
-  };
-  const pick = (n: number) => {
-    void s.rateBrew(brew.id, n, null);
-    s.dismissRatePrompt();
-    s.showToast("Rated " + "★".repeat(n));
-  };
   return (
     <FadeUp duration={400} style={st.rate}>
       <View style={st.rateHead}>
@@ -134,15 +122,9 @@ const RateCard = () => {
       {brew.durationMs > 0 && !!durationDelta(brew.durationMs, brew.params.targetMs) && (
         <View style={st.rateTime}><Text style={st.rateTimeK}>TIME</Text><Text style={st.rateTimeV}>{fmtTime(brew.durationMs)} · {durationDelta(brew.durationMs, brew.params.targetMs)} vs target</Text></View>
       )}
-      <View style={st.stars}>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <Pressable key={n} onPress={() => pick(n)} style={({ pressed }) => [st.star, pressed && { backgroundColor: C.copper20 }]}><Text style={{ fontSize: 19, color: C.copperLight }}>★</Text></Pressable>
-        ))}
-      </View>
-      <View style={st.defects}>
-        {DEFECTS.map((d) => <Defect key={d} on={defects.includes(d)} onPress={() => toggle(d)}>{d}</Defect>)}
+      <RateRow brew={brew} onPick={(n) => { if (n) s.dismissRatePrompt(); }}>
         <Pressable onPress={() => s.openWheel(brew)} style={st.tagcta}><Text style={st.tagctaText}>TAG FLAVOURS →</Text></Pressable>
-      </View>
+      </RateRow>
     </FadeUp>
   );
 };
@@ -184,16 +166,6 @@ const Stepper = ({ children, onPress, label }: { children: string; onPress: () =
     <Text style={{ fontSize: 20, color: C.copperLight }}>{children}</Text>
   </Pressable>
 );
-
-/** "2:41" · "241" (seconds) · "2 41" → ms; null while it is not a time yet. */
-export const parseClock = (raw: string): number | null => {
-  const t = raw.trim();
-  if (!t) return null;
-  const m = /^(\d{1,2})[:\s.](\d{1,2})$/.exec(t);
-  if (m) return Number(m[1]) * 60_000 + Number(m[2]) * 1000;
-  if (/^\d+$/.test(t)) return Number(t) * 1000;
-  return null;
-};
 
 /** One row per method: what switching would put on the ticket, so the choice is not blind. */
 const MethodSheet = () => {
@@ -276,9 +248,6 @@ const st = StyleSheet.create({
   rate: { marginTop: 10, marginHorizontal: 20, borderWidth: 1, borderColor: C.copper55, backgroundColor: C.copper08, paddingVertical: 14, paddingHorizontal: 16 },
   rateHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   rateTitle: c(700, 11, 3, C.copperLight),
-  stars: { flexDirection: "row", gap: 8, marginTop: 12 },
-  star: { flex: 1, height: 46, borderWidth: 1, borderColor: C.copper50, alignItems: "center", justifyContent: "center" },
-  defects: { flexDirection: "row", gap: 8, marginTop: 10, alignItems: "center", flexWrap: "wrap" },
   tagcta: { height: 34, justifyContent: "center", paddingHorizontal: 13 },
   tagctaText: g(600, 12, 1, C.copperLight),
   adjRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 9 },

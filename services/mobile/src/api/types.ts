@@ -328,3 +328,13 @@ export interface LabelScan {
   weight: ExtractedField;
   declaredNotes: DeclaredNote[];
 }
+
+/** A brew after the fact. A field left out stays as it was; rating 0 unrates. */
+export interface UpdateBrew {
+  params?: BrewParams;
+  durationMs?: number;
+  brewedAt?: string;
+  rating?: number;
+  defects?: string[];
+  isPrivate?: boolean;
+}

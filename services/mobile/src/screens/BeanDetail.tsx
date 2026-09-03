@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Act, Chips, Empty, Link, Nav, Rule, Screen, Spacer, SqBtn, TagDash, TagSolid, Title } from "../components/Chrome";
+import { RateRow } from "../components/RateRow";
 import { daysOffRoast, describeDelta, describeFull, fmtTimeOrDash, stars, whenLabel } from "../lib/format";
 import { useStore } from "../state/store";
 import { c, g, tabular } from "../theme/text";
@@ -62,9 +63,11 @@ export const BeanDetail = () => {
                       {h.flavourTags.map((t) => (t.polarity < 0 ? "− " : "") + t.flavour).concat(h.defects.map((d) => `defect: ${d.toLowerCase()}`)).join(" · ")}
                     </Text>
                   )}
+                  <RateRow brew={h} compact />
                   <View style={st.acts}>
                     <Act onPress={() => { s.loadParams(h.params); s.setScreen("home"); s.showToast("Loaded onto the brew ticket"); }}>BREW THIS AGAIN →</Act>
                     <Act onPress={() => s.openWheel(h)}>TAG FLAVOURS →</Act>
+                    <Act onPress={() => s.openBrewEdit(h)}>EDIT →</Act>
                     {s.hasFriends && h.rating > 0 && (
                       <Act on={!h.isPrivate} quiet={h.isPrivate} onPress={() => void s.setBrewPrivacy(h.id, !h.isPrivate)}>
                         {h.isPrivate ? "PRIVATE" : "SHARED WITH FRIENDS"}

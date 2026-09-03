@@ -3,6 +3,7 @@ import { useIsDesktop } from "./hooks/useIsPhone";
 import { TabBar } from "./components/TabBar";
 import { BeanDetail } from "./screens/BeanDetail";
 import { BeanEdit } from "./screens/BeanEdit";
+import { BrewEdit } from "./screens/BrewEdit";
 import { DesktopDoor } from "./screens/DesktopDoor";
 import { Guide } from "./screens/Guide";
 import { Friends } from "./screens/Friends";
@@ -44,6 +45,7 @@ export const App = () => {
             {s.screen === "timer" && <Timer />}
             {s.screen === "bean" && <BeanDetail />}
             {s.screen === "beanedit" && <BeanEdit />}
+            {s.screen === "brewedit" && <BrewEdit />}
             {s.screen === "library" && <Library />}
             {s.screen === "roasters" && <Roasters />}
             {s.screen === "scan" && <Scan />}

@@ -9,6 +9,7 @@ import { Act, BarCtx, Toast } from "./src/components/Chrome";
 import { TabBar } from "./src/components/TabBar";
 import { BeanDetail } from "./src/screens/BeanDetail";
 import { BeanEdit } from "./src/screens/BeanEdit";
+import { BrewEdit } from "./src/screens/BrewEdit";
 import { Friends } from "./src/screens/Friends";
 import { Guide } from "./src/screens/Guide";
 import { Home } from "./src/screens/Home";
@@ -53,6 +54,7 @@ const Shell = () => {
             {s.screen === "timer" && <Timer />}
             {s.screen === "bean" && <BeanDetail />}
             {s.screen === "beanedit" && <BeanEdit />}
+            {s.screen === "brewedit" && <BrewEdit />}
             {s.screen === "library" && <Library />}
             {s.screen === "roasters" && <Roasters />}
             {s.screen === "scan" && <Scan />}
