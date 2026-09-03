@@ -32,7 +32,8 @@ public interface IRoasterLocator
 {
     bool Configured { get; }
     /// <param name="query">The roaster's name, or whatever the user typed to correct a wrong match.</param>
-    Task<LocateResult> LocateAsync(string query, CancellationToken ct);
+    /// <param name="lat">Where the drinker is, when the client could say; it biases the one answer towards them.</param>
+    Task<LocateResult> LocateAsync(string query, double? lat, double? lng, CancellationToken ct);
     /// <summary>Several places the name might mean, for the user to choose from. A position biases the search and sorts the answer.</summary>
     Task<SearchResult> SearchAsync(string query, double? lat, double? lng, int pageSize, CancellationToken ct);
 }
@@ -41,6 +42,6 @@ public interface IRoasterLocator
 public sealed class UnconfiguredRoasterLocator : IRoasterLocator
 {
     public bool Configured => false;
-    public Task<LocateResult> LocateAsync(string query, CancellationToken ct) => Task.FromResult(LocateResult.Unavailable);
+    public Task<LocateResult> LocateAsync(string query, double? lat, double? lng, CancellationToken ct) => Task.FromResult(LocateResult.Unavailable);
     public Task<SearchResult> SearchAsync(string query, double? lat, double? lng, int pageSize, CancellationToken ct) => Task.FromResult(SearchResult.Unavailable);
 }

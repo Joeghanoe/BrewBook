@@ -69,9 +69,10 @@ export const api = {
     return request<VoiceParse>("/voice/transcribe", { method: "POST", body: form });
   },
   config: () => request<Config>("/config"),
-  roasters: (flavours: string[], scope: RoasterScope) => {
+  roasters: (flavours: string[], scope: RoasterScope, near?: { lat: number; lng: number } | null) => {
     const q = new URLSearchParams({ scope });
     if (flavours.length) q.set("flavours", flavours.join(","));
+    if (near) { q.set("lat", String(near.lat)); q.set("lng", String(near.lng)); }
     return request<Roaster[]>("/roasters?" + q);
   },
   recipes: (roasterId: string, userId: string) => request<SharedBrew[]>(`/roasters/${roasterId}/recipes?userId=${userId}`),

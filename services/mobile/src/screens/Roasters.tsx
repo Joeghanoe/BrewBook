@@ -5,6 +5,7 @@ import { api, ApiError } from "../api/client";
 import type { Roaster, RoasterScope, RoasterVoice, SharedBrew } from "../api/types";
 import { Act, Backdrop, Chips, Cta, Empty, Hint, Leaf, Link, Nav, Rule, Screen, Sheet, SheetHead, Spacer, SqBtn, Title } from "../components/Chrome";
 import { RoasterPicker } from "../components/RoasterPicker";
+import { useDeviceLocation } from "../hooks/useDeviceLocation";
 import { MAP_STYLE } from "../lib/mapStyle";
 import { fmtTimeOrDash, METHOD_LABEL, paramsFor, stars, val } from "../lib/format";
 import { mapsUrl, pinKind, pinRadius, pinVoice, ratingLabel, topLikedFlavours } from "../lib/roasters";
@@ -22,17 +23,21 @@ export const Roasters = () => {
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<Roaster | null>(null);
 
-  const load = useCallback(async (flavours: string[], scope: RoasterScope) => {
+  // Roasters nobody has looked up yet are resolved on this request; the position leans that lookup towards the drinker.
+  const loc = useDeviceLocation();
+  const near = loc.kind === "known" ? loc.at : null;
+  const load = useCallback(async (flavours: string[], scope: RoasterScope, near: { lat: number; lng: number } | null) => {
     setError(null);
     try {
-      setRoasters(await api.roasters(flavours, scope));
+      setRoasters(await api.roasters(flavours, scope, near));
     } catch (e) {
       setRoasters(null);
       setError(e instanceof ApiError ? e.message : "The brew log could not be reached.");
     }
   }, []);
   const { scope } = s;
-  useEffect(() => { void load(selected, scope); }, [load, selected, scope]);
+  // Waits for the position answer (known or refused) so the first lookups are not made blind.
+  useEffect(() => { if (loc.kind !== "asking") void load(selected, scope, near); }, [load, selected, scope, loc.kind, near]);
 
   // Arriving from a bean's plaque: open that roaster's sheet once the list is in. If the
   // palate filter hides it, drop the filter first and let the reload find it.
@@ -78,7 +83,7 @@ export const Roasters = () => {
 
       <ScrollView style={{ flex: 1, paddingHorizontal: 22 }} showsVerticalScrollIndicator={false}>
         {mapOn && unlocated.length > 0 && <Rule label="NOT ON THE MAP" right={`${unlocated.length}`} style={{ marginTop: 14 }} />}
-        {error && <View style={{ paddingVertical: 26, gap: 10 }}><Empty style={{ paddingVertical: 0 }}>{error}</Empty><Act onPress={() => void load(selected, scope)}>TRY AGAIN →</Act></View>}
+        {error && <View style={{ paddingVertical: 26, gap: 10 }}><Empty style={{ paddingVertical: 0 }}>{error}</Empty><Act onPress={() => void load(selected, scope, near)}>TRY AGAIN →</Act></View>}
         {!error && roasters === null && <Empty>Finding your roasters…</Empty>}
         {roasters?.length === 0 && <Empty>{emptyLine(scope, selected.length > 0)}</Empty>}
         {(mapOn ? unlocated : roasters ?? []).map((r) => {

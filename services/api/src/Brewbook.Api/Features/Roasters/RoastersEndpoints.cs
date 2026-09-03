@@ -28,7 +28,7 @@ public static class RoastersEndpoints
 
         var g = api.MapGroup("/roasters");
 
-        g.MapGet("/", async (string? flavours, string? scope, CurrentUser me, BrewbookDbContext db, IRoasterLocator locator, TimeProvider clock, IOptions<FeatureOptions> features, CancellationToken ct) =>
+        g.MapGet("/", async (string? flavours, string? scope, double? lat, double? lng, CurrentUser me, BrewbookDbContext db, IRoasterLocator locator, TimeProvider clock, IOptions<FeatureOptions> features, CancellationToken ct) =>
         {
             var wanted = RoasterStats.ParseFlavours(flavours);
             // With friends off there is only one map, whatever the query string asks for.
@@ -94,12 +94,14 @@ public static class RoastersEndpoints
             if (roasters.Count == 0) return Results.Ok(Array.Empty<RoasterResponse>());
 
             // First need: ask the locator for rows nobody has looked up yet, and remember the answer.
+            // The drinker's position, when the client sends one, leans the answer their way (§4).
+            var near = lat is >= -90 and <= 90 && lng is >= -180 and <= 180;
             var resolves = 0;
             foreach (var roaster in roasters.Values.Where(r => r.ResolvedAt is null))
             {
                 if (!locator.Configured || resolves >= MaxResolvesPerRequest) break;
                 resolves++;
-                await RoasterLinker.ResolveAsync(roaster, roaster.Name, locator, clock, ct);
+                await RoasterLinker.ResolveAsync(roaster, roaster.Name, locator, clock, ct, near ? lat : null, near ? lng : null);
             }
             if (resolves > 0) await db.SaveChangesAsync(ct);
 

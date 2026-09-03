@@ -3,6 +3,7 @@ import { api, ApiError } from "../api/client";
 import type { Roaster, RoasterScope, RoasterVoice, SharedBrew } from "../api/types";
 import { Grabber, Rule } from "../components/Chrome";
 import { RoasterPicker } from "../components/RoasterPicker";
+import { useDeviceLocation } from "../hooks/useDeviceLocation";
 import { loadGoogleMaps, MAP_STYLE, type GMap, type GMarker, type GoogleMaps } from "../lib/googleMaps";
 import { fmtTimeOrDash, METHOD_LABEL, paramsFor, stars, val } from "../lib/format";
 import { mapsUrl, pinKind, pinRadius, pinVoice, ratingLabel, topLikedFlavours } from "../lib/roasters";
@@ -28,17 +29,21 @@ export const Roasters = () => {
     return () => { alive = false; };
   }, []);
 
-  const load = useCallback(async (flavours: string[], scope: RoasterScope) => {
+  // Roasters nobody has looked up yet are resolved on this request; the position leans that lookup towards the drinker.
+  const loc = useDeviceLocation();
+  const near = loc.kind === "known" ? loc.at : null;
+  const load = useCallback(async (flavours: string[], scope: RoasterScope, near: { lat: number; lng: number } | null) => {
     setError(null);
     try {
-      setRoasters(await api.roasters(flavours, scope));
+      setRoasters(await api.roasters(flavours, scope, near));
     } catch (e) {
       setRoasters(null);
       setError(e instanceof ApiError ? e.message : "The brew log could not be reached.");
     }
   }, []);
   const { scope } = s;
-  useEffect(() => { void load(selected, scope); }, [load, selected, scope]);
+  // Waits for the position answer (known or refused) so the first lookups are not made blind.
+  useEffect(() => { if (loc.kind !== "asking") void load(selected, scope, near); }, [load, selected, scope, loc.kind, near]);
 
   // Arriving from a bean's plaque: open that roaster's sheet once the list is in. If the
   // palate filter hides it, drop the filter first and let the reload find it.
@@ -84,7 +89,7 @@ export const Roasters = () => {
 
       <div className="roasters">
         {mapState.kind === "ready" && unlocated.length > 0 && <div style={{ marginTop: 14 }}><Rule label="NOT ON THE MAP" right={`${unlocated.length}`} /></div>}
-        {error && <div className="empty">{error} <button className="act" style={{ marginLeft: 8 }} onClick={() => void load(selected, scope)}>TRY AGAIN →</button></div>}
+        {error && <div className="empty">{error} <button className="act" style={{ marginLeft: 8 }} onClick={() => void load(selected, scope, near)}>TRY AGAIN →</button></div>}
         {!error && roasters === null && <div className="empty">Finding your roasters…</div>}
         {roasters?.length === 0 && <div className="empty">{emptyLine(scope, selected.length > 0)}</div>}
         {(mapState.kind === "ready" ? unlocated : roasters ?? []).map((r) => {

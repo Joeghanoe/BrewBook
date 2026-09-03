@@ -18,9 +18,9 @@ public sealed class GooglePlacesLocator(HttpClient http, IOptions<GoogleMapsOpti
 
     public bool Configured => true;
 
-    public async Task<LocateResult> LocateAsync(string query, CancellationToken ct)
+    public async Task<LocateResult> LocateAsync(string query, double? lat, double? lng, CancellationToken ct)
     {
-        var parsed = await SearchTextAsync(new { textQuery = BuildQuery(query), pageSize = 1, regionCode = Region(_opt.RegionCode) }, ct);
+        var parsed = await SearchTextAsync(new { textQuery = BuildQuery(query), pageSize = 1, regionCode = Region(_opt.RegionCode), locationBias = Bias(lat, lng) }, ct);
         return parsed is null ? LocateResult.Unavailable : Map(parsed);
     }
 
@@ -31,11 +31,14 @@ public sealed class GooglePlacesLocator(HttpClient http, IOptions<GoogleMapsOpti
             textQuery = BuildQuery(query),
             pageSize = Math.Clamp(pageSize, 1, 20),
             regionCode = Region(_opt.RegionCode),
-            locationBias = lat is { } la && lng is { } ln ? new { circle = new { center = new { latitude = la, longitude = ln }, radius = BiasRadiusM } } : null,
+            locationBias = Bias(lat, lng),
         };
         var parsed = await SearchTextAsync(body, ct);
         return parsed is null ? SearchResult.Unavailable : MapMany(parsed, lat, lng);
     }
+
+    private static object? Bias(double? lat, double? lng)
+        => lat is { } la && lng is { } ln ? new { circle = new { center = new { latitude = la, longitude = ln }, radius = BiasRadiusM } } : null;
 
     /// <summary>Null means the provider gave no answer: a failed call, a timeout, an error status. Callers treat that as "unavailable", never as "not found".</summary>
     private async Task<Response?> SearchTextAsync(object body, CancellationToken ct)

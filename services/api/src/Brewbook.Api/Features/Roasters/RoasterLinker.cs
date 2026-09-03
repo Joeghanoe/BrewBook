@@ -66,10 +66,10 @@ public static class RoasterLinker
     /// the row untouched so the next request asks again; a definite "not found" is recorded so it
     /// does not. Returns true when the row changed. Does not save.
     /// </summary>
-    public static async Task<bool> ResolveAsync(Roaster roaster, string query, IRoasterLocator locator, TimeProvider clock, CancellationToken ct)
+    public static async Task<bool> ResolveAsync(Roaster roaster, string query, IRoasterLocator locator, TimeProvider clock, CancellationToken ct, double? lat = null, double? lng = null)
     {
         if (!locator.Configured) return false;
-        var result = await locator.LocateAsync(query, ct);
+        var result = await locator.LocateAsync(query, lat, lng, ct);
         if (result.Status == LocateStatus.Unavailable) return false;
 
         roaster.ResolvedAt = clock.GetUtcNow();

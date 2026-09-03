@@ -150,6 +150,26 @@ public class RoastersApiTests
     private static readonly BrewParamsDto Defaults = new(4.5m, 15.0m, 250m, 94m, 2);
 
     [Fact]
+    public async Task List_lookup_is_biased_to_the_drinker_when_the_client_sends_a_position()
+    {
+        var locator = new FakeLocator(new LocateResult(LocateStatus.Located, new RoasterPlace("p1", "Finca", "Rigakade 10, Amsterdam", 52.39, 4.87, null)));
+        using var f = new ApiFactory(s => s.Replace(ServiceDescriptor.Singleton<IRoasterLocator>(locator)));
+        var c = f.ClientFor("finca@example.com");
+        await CreateBean(c, "Guji", "Finca");
+
+        (await c.GetAsync("/api/v1/roasters?lat=52.37&lng=4.9")).EnsureSuccessStatusCode();
+        Assert.Equal((52.37, 4.9), Assert.Single(locator.Locates));
+
+        // Out-of-range numbers are not a position: the lookup runs unbiased rather than failing.
+        var blind = new FakeLocator(LocateResult.NotFound);
+        using var f2 = new ApiFactory(s => s.Replace(ServiceDescriptor.Singleton<IRoasterLocator>(blind)));
+        var c2 = f2.ClientFor("finca2@example.com");
+        await CreateBean(c2, "Guji", "Somewhere");
+        (await c2.GetAsync("/api/v1/roasters?lat=400&lng=4.9")).EnsureSuccessStatusCode();
+        Assert.Equal((null, null), Assert.Single(blind.Locates));
+    }
+
+    [Fact]
     public async Task Bags_link_to_one_shared_roaster_by_normalised_name()
     {
         using var f = new ApiFactory();
@@ -453,9 +473,12 @@ file sealed class FakeLocator(LocateResult next) : IRoasterLocator
     public List<(string Query, double? Lat, double? Lng)> Searches { get; } = [];
     public bool Configured => true;
 
-    public Task<LocateResult> LocateAsync(string query, CancellationToken ct)
+    public List<(double? Lat, double? Lng)> Locates { get; } = [];
+
+    public Task<LocateResult> LocateAsync(string query, double? lat, double? lng, CancellationToken ct)
     {
         Queries.Add(query);
+        Locates.Add((lat, lng));
         return Task.FromResult(Next);
     }
 
