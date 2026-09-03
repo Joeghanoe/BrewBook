@@ -19,7 +19,6 @@ export const BeanDetail = () => {
         <button className="sqbtn" onClick={() => s.setScreen("library")} aria-label="Back to the library">←</button>
         <div className="title">BEAN</div>
         <div style={{ flex: 1 }} />
-        <button className="link" onClick={() => s.setScreen("beanedit")}>EDIT</button>
         <button className="link" onClick={() => { s.selectBean(bean.id); s.setScreen("home"); }}>BREW THIS →</button>
       </div>
       <div className="plaque">

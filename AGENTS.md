@@ -54,6 +54,14 @@ from `env(safe-area-inset-*)` in `.screen`.
 The premise is coffees. With no open bag, home is the first task — add a bag — not a ticket with
 a disabled button.
 
+### Web and mobile are one app
+
+`services/web` and `services/mobile` are the same product on two runtimes, not two products. A
+screen, an interaction, a piece of copy or a token changed in one is changed in the other in the
+same commit; a feature that exists in one exists in the other. What differs is only what the
+runtime forces: how sign-in is reached, which camera or microphone API is used, the map provider.
+When one client gets ahead, the other is a bug, not a roadmap item.
+
 ### A capability that is off has no routes
 
 Friends, invitations and shared recipes sit behind `Features__Friends`, off by default. Off is not

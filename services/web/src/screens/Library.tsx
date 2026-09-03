@@ -3,6 +3,7 @@ import type { Bean } from "../api/types";
 import { Rule } from "../components/Chrome";
 import { CameraIcon } from "../components/Icons";
 import { brewsLeftLabel, daysOffRoast } from "../lib/format";
+import { useLongPress } from "../hooks/useLongPress";
 import { useStore } from "../state/store";
 
 /**
@@ -28,6 +29,8 @@ export const Library = () => {
   const s = useStore();
   const [archiveOpen, setArchiveOpen] = useState(false);
   const openBean = (id: string) => { s.selectBean(id); s.setScreen("bean"); };
+  // Hold a card to edit the bag; a tap opens its log.
+  const editBean = (id: string) => { s.selectBean(id); s.setScreen("beanedit"); };
   return (
     <div className="screen">
       <div className="nav">
@@ -37,20 +40,10 @@ export const Library = () => {
       </div>
       <div style={{ overflow: "auto", flex: 1, display: "flex", flexDirection: "column" }}>
         {s.beansOpen.filter((b) => b.askToArchive).map((b) => <ArchivePrompt key={b.id} bean={b} />)}
-        <div style={{ margin: "18px 22px 0" }}><Rule label="OPEN BAGS" /></div>
+        <div style={{ margin: "18px 22px 0" }}><Rule label="OPEN BAGS" right="HOLD TO EDIT" /></div>
         <div style={{ padding: "12px 22px 0", display: "flex", flexDirection: "column", gap: 12 }}>
           {s.beansOpen.length === 0 && <div className="empty" style={{ padding: "14px 0" }}>No open bags — scan a label to add the first one.</div>}
-          {s.beansOpen.map((b) => {
-            const d = daysOffRoast(b.roastDate);
-            return (
-              <button key={b.id} className="bag" onClick={() => openBean(b.id)}>
-                <div className="top"><span className="name">{b.name}</span><span className="days">{d === null ? "— D" : `${d} D`}</span></div>
-                <div className="sub">{[b.roaster, [b.origin, b.process].filter(Boolean).join(" · ")].filter(Boolean).join(" · ") || "no details on record"}</div>
-                {b.declaredNotes.length > 0 && <div className="notes">{b.declaredNotes.join(" · ")}</div>}
-                {brewsLeftLabel(b.brewsLeft) && <div className="left">{brewsLeftLabel(b.brewsLeft)}</div>}
-              </button>
-            );
-          })}
+          {s.beansOpen.map((b) => <BagCard key={b.id} bean={b} onOpen={() => openBean(b.id)} onEdit={() => editBean(b.id)} />)}
         </div>
         <button className="rule" style={{ margin: "22px 22px 0", color: "rgba(233,214,174,.55)", width: "calc(100% - 44px)" }} onClick={() => setArchiveOpen((o) => !o)}>
           <span>ARCHIVE</span><div className="line" style={{ background: "rgba(194,144,94,.2)" }} /><span>{archiveOpen ? "⌃" : "⌄"}</span>
@@ -71,5 +64,18 @@ export const Library = () => {
         <button className="scan-cta" onClick={() => s.setScreen("scan")}><CameraIcon /> ADD A BAG — SCAN LABEL</button>
       </div>
     </div>
+  );
+};
+
+const BagCard = ({ bean: b, onOpen, onEdit }: { bean: Bean; onOpen: () => void; onEdit: () => void }) => {
+  const d = daysOffRoast(b.roastDate);
+  const press = useLongPress(onOpen, onEdit);
+  return (
+    <button className="bag" {...press}>
+      <div className="top"><span className="name">{b.name}</span><span className="days">{d === null ? "— D" : `${d} D`}</span></div>
+      <div className="sub">{[b.roaster, [b.origin, b.process].filter(Boolean).join(" · ")].filter(Boolean).join(" · ") || "no details on record"}</div>
+      {b.declaredNotes.length > 0 && <div className="notes">{b.declaredNotes.join(" · ")}</div>}
+      {brewsLeftLabel(b.brewsLeft) && <div className="left">{brewsLeftLabel(b.brewsLeft)}</div>}
+    </button>
   );
 };
