@@ -45,6 +45,19 @@ public class GooglePlacesLocatorTests
         => Assert.Equal(expected, GooglePlacesLocator.Region(raw));
 
     [Fact]
+    public void Fence_is_about_fifty_kilometres_around_the_position_and_nothing_without_one()
+    {
+        Assert.Null(GooglePlacesLocator.Fence(null, 4.9));
+        var fence = GooglePlacesLocator.Fence(52.37, 4.9)!;
+        var json = System.Text.Json.JsonSerializer.Serialize(fence);
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var low = doc.RootElement.GetProperty("rectangle").GetProperty("low");
+        var high = doc.RootElement.GetProperty("rectangle").GetProperty("high");
+        Assert.InRange(high.GetProperty("latitude").GetDouble() - low.GetProperty("latitude").GetDouble(), 0.85, 0.95);
+        Assert.InRange(high.GetProperty("longitude").GetDouble() - low.GetProperty("longitude").GetDouble(), 1.4, 1.55);
+    }
+
+    [Fact]
     public void Query_steers_towards_roasters_and_appends_the_hint()
     {
         // The roaster's name and nothing else. Where the beans grew says nothing about where

@@ -20,8 +20,28 @@ public sealed class GooglePlacesLocator(HttpClient http, IOptions<GoogleMapsOpti
 
     public async Task<LocateResult> LocateAsync(string query, double? lat, double? lng, CancellationToken ct)
     {
+        // With a position, look near the drinker first and only then anywhere: a bias alone still
+        // lets a famous namesake abroad outrank the roaster round the corner.
+        if (Fence(lat, lng) is { } fence)
+        {
+            var near = await SearchTextAsync(new { textQuery = BuildQuery(query), pageSize = 1, regionCode = Region(_opt.RegionCode), locationRestriction = fence }, ct);
+            if (near is null) return LocateResult.Unavailable;
+            var found = Map(near);
+            if (found.Status == LocateStatus.Located) return found;
+        }
         var parsed = await SearchTextAsync(new { textQuery = BuildQuery(query), pageSize = 1, regionCode = Region(_opt.RegionCode), locationBias = Bias(lat, lng) }, ct);
         return parsed is null ? LocateResult.Unavailable : Map(parsed);
+    }
+
+    /// <summary>The rectangle Places accepts as a hard restriction: about the bias radius on each side of the position.</summary>
+    public static object? Fence(double? lat, double? lng)
+    {
+        if (lat is not { } la || lng is not { } ln) return null;
+        var dLat = BiasRadiusM / 111_320d;
+        var dLng = dLat / Math.Max(0.2, Math.Cos(la * Math.PI / 180));
+        return new { rectangle = new {
+            low = new { latitude = Math.Max(-90, la - dLat), longitude = Math.Max(-180, ln - dLng) },
+            high = new { latitude = Math.Min(90, la + dLat), longitude = Math.Min(180, ln + dLng) } } };
     }
 
     public async Task<SearchResult> SearchAsync(string query, double? lat, double? lng, int pageSize, CancellationToken ct)
