@@ -16,8 +16,10 @@ export const TicketHead = ({ number }: { number: string }) => (
   <View style={st.head}><Text style={st.headTitle}>BREW TICKET</Text><Text style={st.headNo}>N° {number}</Text></View>
 );
 
-export const TicketMethod = () => (
-  <View style={st.method}><Star /><Text style={st.methodText}>FILTER · HAND GRINDER</Text><Star /></View>
+export const TicketMethod = ({ label, onPress }: { label: string; onPress?: () => void }) => (
+  <Pressable onPress={onPress} disabled={!onPress} accessibilityLabel="Change brew method" style={({ pressed }) => [st.method, pressed && { opacity: 0.6 }]}>
+    <Star /><Text style={st.methodText}>{label} · HAND GRINDER</Text><Star />
+  </Pressable>
 );
 
 /** Six cells in two rows of three, ink rules between. */
@@ -53,7 +55,7 @@ const st = StyleSheet.create({
   head: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", borderBottomWidth: 2, borderBottomColor: C.ink, paddingBottom: 10 },
   headTitle: g(700, 13, 4, C.ink),
   headNo: c(700, 12, 1, C.ink),
-  method: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingTop: 11, paddingBottom: 2 },
+  method: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, minHeight: 44, paddingTop: 11, paddingBottom: 2 },
   methodText: g(600, 11, 3, C.ink75),
   grid: { backgroundColor: C.ink, borderWidth: 1.5, borderColor: C.ink, marginTop: 9, marginBottom: 14 },
   row: { flexDirection: "row", gap: 1.5 },

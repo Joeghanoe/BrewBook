@@ -9,12 +9,11 @@ import { MicIcon } from "../components/Icons";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { LONG_PRESS_MS } from "../hooks/useLongPress";
 import { useRecorder } from "../hooks/useRecorder";
-import { fmtTime, PARAMS } from "../lib/format";
+import { fmtTime, paramsFor, val } from "../lib/format";
 import { useStore } from "../state/store";
 import { c, g, tabular } from "../theme/text";
 import { C } from "../theme/tokens";
 
-const TARGET_MS = 150_000;
 
 export const Timer = () => {
   const s = useStore();
@@ -63,7 +62,7 @@ export const Timer = () => {
             {running && <Pulse periodMs={2200} style={st.dialRing} />}
             <View style={st.dial}>
               <Text style={st.time}>{fmtTime(elapsed)}</Text>
-              <Text style={st.target}>target {fmtTime(TARGET_MS)} · {s.currentBean?.name ?? "—"}</Text>
+              <Text style={st.target}>target {fmtTime(s.params.targetMs)} · {s.currentBean?.name ?? "—"}</Text>
             </View>
           </View>
           <View style={st.markers}>
@@ -142,8 +141,8 @@ const VoiceStrip = ({ running }: { running: boolean }) => {
   return (
     <View style={st.strip}>
       <View style={st.ticketStrip}>
-        {PARAMS.map((cfg) => {
-          const v = s.params[cfg.key], b = s.base[cfg.key], changed = v !== b;
+        {paramsFor(s.params.method).map((cfg) => {
+          const v = val(s.params, cfg.key), b = val(s.base, cfg.key), changed = s.params.method !== s.base.method || v !== b;
           return (
             <View key={cfg.key} style={st.tsCell}>
               <Text style={st.tsLabel}>{cfg.label}</Text>

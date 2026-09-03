@@ -11,11 +11,18 @@ public sealed class Brew
     /// <summary>Per-user sequence (the ticket's N°). Unique per user, never global.</summary>
     public int Number { get; set; }
 
+    public BrewMethod Method { get; set; }
     public decimal Grind { get; set; }
     public decimal DoseG { get; set; }
     public decimal YieldG { get; set; }
     public decimal TempC { get; set; }
+    /// <summary>Filter only; 0 for other methods.</summary>
     public int Blooms { get; set; }
+    /// <summary>Espresso only; null where the method has no pre-infusion.</summary>
+    public int? PreInfusionS { get; set; }
+    /// <summary>The recipe's planned time. <see cref="DurationMs"/> is what actually happened.</summary>
+    public int TargetMs { get; set; }
+    /// <summary>Measured brew time; 0 means the brew was logged without one and is still untimed.</summary>
     public int DurationMs { get; set; }
     public List<int> PourMarkersMs { get; set; } = [];
 

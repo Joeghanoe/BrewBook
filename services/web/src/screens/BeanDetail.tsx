@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Rule } from "../components/Chrome";
-import { daysOffRoast, describeDelta, describeFull, fmtTime, stars, whenLabel } from "../lib/format";
+import { daysOffRoast, describeDelta, describeFull, fmtTimeOrDash, stars, whenLabel } from "../lib/format";
 import { useStore } from "../state/store";
 
 export const BeanDetail = () => {
@@ -47,7 +47,7 @@ export const BeanDetail = () => {
               <button className="log-line" style={{ width: "100%" }} onClick={() => setOpen(isOpen ? null : h.id)}>
                 <span className="when">{whenLabel(h.brewedAt)}</span>
                 <span className="delta">{describeDelta(h.params, prev?.params ?? null)}</span>
-                <span className="dur">{fmtTime(h.durationMs)}</span>
+                <span className="dur">{fmtTimeOrDash(h.durationMs)}</span>
                 <span className={"stars" + (h.rating ? "" : " none")}>{stars(h.rating)}</span>
               </button>
               {isOpen && (

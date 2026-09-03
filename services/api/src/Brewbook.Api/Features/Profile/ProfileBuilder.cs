@@ -68,6 +68,11 @@ public static class ProfileBuilder
 
     private static ProfilePreferences Preferences(IReadOnlyList<Brew> brews)
     {
+        // Medians only make sense within one method: a grind for espresso says nothing about filter.
+        // The profile speaks for the method the user brews most.
+        var method = brews.GroupBy(b => b.Method).OrderByDescending(g => g.Count()).ThenBy(g => g.Key).Select(g => (BrewMethod?)g.Key).FirstOrDefault();
+        brews = brews.Where(b => b.Method == method).ToList();
+        var timed = brews.Where(b => b.DurationMs > 0).ToList();
         var rated = brews.Where(b => b.Rating > 0).ToList();
         var liked = rated.Where(b => b.Rating >= LikedRating).ToList();
         var defects = brews.SelectMany(b => b.Defects)
@@ -80,7 +85,7 @@ public static class ProfileBuilder
             brews.Count == 0 ? null : Medians(brews),
             rated.Count,
             liked.Count,
-            brews.Count == 0 ? null : MedianInt(brews.Select(b => b.DurationMs)),
+            timed.Count == 0 ? null : MedianInt(timed.Select(b => b.DurationMs)),
             defects);
     }
 
@@ -89,10 +94,18 @@ public static class ProfileBuilder
         Median(brews.Select(b => b.DoseG)),
         Median(brews.Select(b => b.YieldG)),
         Median(brews.Select(b => b.TempC)),
-        MedianInt(brews.Select(b => b.Blooms)));
+        MedianInt(brews.Select(b => b.Blooms)),
+        brews[0].Method,
+        brews[0].Method == BrewMethod.Espresso ? MedianInt(brews.Select(b => b.PreInfusionS ?? 0)) : null,
+        MedianInt(brews.Select(b => b.TargetMs)));
 
     private static ProfileBean BeanRow(Bean bean, List<Brew> brews)
     {
+        // Medians only make sense within one method: a grind for espresso says nothing about filter.
+        // The profile speaks for the method the user brews most.
+        var method = brews.GroupBy(b => b.Method).OrderByDescending(g => g.Count()).ThenBy(g => g.Key).Select(g => (BrewMethod?)g.Key).FirstOrDefault();
+        brews = brews.Where(b => b.Method == method).ToList();
+        var timed = brews.Where(b => b.DurationMs > 0).ToList();
         var rated = brews.Where(b => b.Rating > 0).ToList();
         var best = rated.OrderByDescending(b => b.Rating).ThenByDescending(b => b.Number).FirstOrDefault();
         return new ProfileBean(bean.Id, bean.Name, bean.Roaster, bean.Archived, brews.Count, Average(rated), best?.Id);

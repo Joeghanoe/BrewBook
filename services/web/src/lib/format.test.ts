@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysOffRoast, describeDelta, describePreference, fmtTime, sameAsLabel, whenLabel } from "./format";
+import { changedKeys, daysOffRoast, describeDelta, describeFull, describePreference, durationDelta, fmtTime, fmtTimeOrDash, METHOD_DEFAULTS, paramsFor, sameParams, whenLabel, sameAsLabel } from "./format";
 
 const now = new Date(2026, 8, 1, 9, 41); // 1 Sep 2026, Tuesday
 
@@ -17,11 +17,39 @@ describe("format", () => {
   });
 
   it("describes the delta against the previous brew", () => {
-    const base = { grind: 4.5, doseG: 15, yieldG: 250, tempC: 94, blooms: 2 };
+    const base = METHOD_DEFAULTS.filter;
     expect(describeDelta(base, null)).toBe("first brew");
     expect(describeDelta({ ...base, tempC: 93 }, base)).toBe("93°C (was 94)");
     expect(describeDelta({ ...base, grind: 4 }, base)).toBe("−0.5 grind");
+    expect(describeDelta({ ...base, targetMs: 165_000 }, base)).toBe("target 2:45 (was 2:30)");
     expect(describeDelta(base, base)).toBe("same as last");
+  });
+
+  it("names a method change instead of comparing numbers across methods", () => {
+    expect(describeDelta(METHOD_DEFAULTS.espresso, METHOD_DEFAULTS.filter)).toBe("espresso (was filter)");
+    const e = METHOD_DEFAULTS.espresso;
+    expect(describeDelta({ ...e, preInfusionS: 8, yieldG: 40 }, e)).toBe("+4 g out · 8 s pre-infusion (was 0)");
+  });
+
+  it("lays out six cells per method and hides what the method has not got", () => {
+    expect(paramsFor("filter").map((c) => c.label)).toEqual(["GRIND", "DOSE", "WATER", "TEMP", "BLOOM", "TIME"]);
+    expect(paramsFor("espresso").map((c) => c.label)).toEqual(["GRIND", "DOSE", "YIELD", "TEMP", "PRE-INF", "SHOT"]);
+    const f = METHOD_DEFAULTS.filter;
+    expect(sameParams(f, { ...f, preInfusionS: 9 })).toBe(true);
+    expect(sameParams(f, { ...f, blooms: 3 })).toBe(false);
+    expect(sameParams(f, METHOD_DEFAULTS.espresso)).toBe(false);
+    expect(changedKeys({ ...f, targetMs: 155_000 }, f).map((c) => c.key)).toEqual(["targetMs"]);
+    expect(changedKeys(METHOD_DEFAULTS.espresso, f)).toHaveLength(6);
+  });
+
+  it("reads the measured time against the recipe", () => {
+    expect(durationDelta(0, 150_000)).toBe("");
+    expect(durationDelta(150_400, 150_000)).toBe("on target");
+    expect(durationDelta(161_000, 150_000)).toBe("+11 s");
+    expect(durationDelta(146_000, 150_000)).toBe("−4 s");
+    expect(fmtTimeOrDash(0)).toBe("—");
+    expect(describeFull(METHOD_DEFAULTS.filter, 0)).toContain("untimed (target 2:30)");
+    expect(describeFull(METHOD_DEFAULTS.espresso, 27_000)).toBe("18.0 g → 36 g · 93°C · grind 2.0 · 0 s pre-infusion · 0:27 (target 0:28)");
   });
 
   it("describes a preferred value against the overall median", () => {
@@ -33,6 +61,8 @@ describe("format", () => {
     expect(describePreference("blooms", 3, 2)).toBe("+1 BLOOM");
     expect(describePreference("blooms", 1, 3)).toBe("−2 BLOOMS");
     expect(describePreference("tempC", 94, 94)).toBe("SAME");
+    expect(describePreference("preInfusionS", 8, 6)).toBe("+2 S");
+    expect(describePreference("targetMs", 27_000, 30_000)).toBe("−3 S");
   });
 
   it("labels when a brew happened", () => {

@@ -1,4 +1,4 @@
-import type { BrewParams } from "../api/types";
+import type { BrewMethod, BrewParams } from "../api/types";
 
 export const fmtTime = (ms: number) => {
   const t = Math.max(0, ms);
@@ -9,8 +9,11 @@ export const fmtTime = (ms: number) => {
 
 export const num = (v: number, dp = 1) => (Number.isInteger(v) ? String(v) : v.toFixed(dp));
 
+/** Any ticket value that is a number; `method` is the one that is not. */
+export type ParamKey = Exclude<keyof BrewParams, "method">;
+
 export interface ParamCfg {
-  key: keyof BrewParams;
+  key: ParamKey;
   label: string;
   unit: string;
   step: number;
@@ -19,52 +22,95 @@ export interface ParamCfg {
   delta: (v: number, b: number) => string;
 }
 
-// The ticket's five values, in ticket order. Steps from the handoff.
-export const PARAMS: ParamCfg[] = [
-  { key: "grind", label: "GRIND", unit: "clicks", step: 0.5, fmt: (v) => v.toFixed(1), cellUnit: "",
-    delta: (v, b) => (v < b ? "−" : "+") + Math.abs(v - b).toFixed(1) + (v < b ? " FINER" : " COARSER") },
-  { key: "doseG", label: "DOSE", unit: "g", step: 0.1, fmt: (v) => v.toFixed(1), cellUnit: "g",
-    delta: (v, b) => (v < b ? "−" : "+") + Math.abs(v - b).toFixed(1) + " G" },
-  { key: "yieldG", label: "YIELD", unit: "g", step: 5, fmt: (v) => num(v), cellUnit: "g",
-    delta: (v, b) => (v < b ? "−" : "+") + num(Math.abs(v - b)) + " G" },
-  { key: "tempC", label: "WATER", unit: "°C", step: 1, fmt: (v) => num(v), cellUnit: "°C",
-    delta: (_v, b) => "WAS " + num(b) + "°C" },
-  { key: "blooms", label: "BLOOM", unit: "pours", step: 1, fmt: (v) => "× " + v, cellUnit: "",
-    delta: (_v, b) => "WAS × " + b },
-];
+export const METHOD_LABEL: Record<BrewMethod, string> = { filter: "FILTER", espresso: "ESPRESSO" };
+export const METHODS: BrewMethod[] = ["filter", "espresso"];
+
+/** What the first brew of a bag starts from, per method. The espresso grind is a placeholder for the user's own scale. */
+export const METHOD_DEFAULTS: Record<BrewMethod, BrewParams> = {
+  filter: { method: "filter", grind: 4.5, doseG: 15, yieldG: 250, tempC: 94, blooms: 2, preInfusionS: null, targetMs: 150_000 },
+  espresso: { method: "espresso", grind: 2, doseG: 18, yieldG: 36, tempC: 93, blooms: 0, preInfusionS: 0, targetMs: 28_000 },
+};
+
+/** A ticket value as a number; a field the method does not have reads as 0. */
+export const val = (p: BrewParams, key: ParamKey): number => p[key] ?? 0;
+
+const sign = (v: number, b: number) => (v < b ? "−" : "+");
+const secs = (ms: number) => Math.round(ms / 1000);
+
+const GRIND: ParamCfg = { key: "grind", label: "GRIND", unit: "clicks", step: 0.5, fmt: (v) => v.toFixed(1), cellUnit: "",
+  delta: (v, b) => sign(v, b) + Math.abs(v - b).toFixed(1) + (v < b ? " FINER" : " COARSER") };
+const DOSE: ParamCfg = { key: "doseG", label: "DOSE", unit: "g", step: 0.1, fmt: (v) => v.toFixed(1), cellUnit: "g",
+  delta: (v, b) => sign(v, b) + Math.abs(v - b).toFixed(1) + " G" };
+const WATER: ParamCfg = { key: "yieldG", label: "WATER", unit: "g", step: 5, fmt: (v) => num(v), cellUnit: "g",
+  delta: (v, b) => sign(v, b) + num(Math.abs(v - b)) + " G" };
+const YIELD: ParamCfg = { ...WATER, label: "YIELD", unit: "g out", step: 1, fmt: (v) => num(v) };
+const TEMP: ParamCfg = { key: "tempC", label: "TEMP", unit: "°C", step: 1, fmt: (v) => num(v), cellUnit: "°C",
+  delta: (_v, b) => "WAS " + num(b) + "°C" };
+const BLOOM: ParamCfg = { key: "blooms", label: "BLOOM", unit: "pours", step: 1, fmt: (v) => "× " + v, cellUnit: "",
+  delta: (_v, b) => "WAS × " + b };
+const PREINF: ParamCfg = { key: "preInfusionS", label: "PRE-INF", unit: "s", step: 1, fmt: (v) => num(v), cellUnit: "s",
+  delta: (v, b) => sign(v, b) + Math.abs(v - b) + " S" };
+const TIME: ParamCfg = { key: "targetMs", label: "TIME", unit: "target", step: 5000, fmt: (v) => fmtTime(v), cellUnit: "",
+  delta: (_v, b) => "WAS " + fmtTime(b) };
+const SHOT: ParamCfg = { ...TIME, label: "SHOT", step: 1000, delta: (v, b) => sign(v, b) + Math.abs(secs(v) - secs(b)) + " S" };
+
+/** The ticket's six cells for a method, in ticket order. Steps from the handoff. */
+export const paramsFor = (method: BrewMethod): ParamCfg[] =>
+  method === "espresso" ? [GRIND, DOSE, YIELD, TEMP, PREINF, SHOT] : [GRIND, DOSE, WATER, TEMP, BLOOM, TIME];
 
 export const round1 = (v: number) => Math.round(v * 10) / 10;
-export const sameParams = (a: BrewParams, b: BrewParams) => PARAMS.every((c) => a[c.key] === b[c.key]);
-export const changedKeys = (a: BrewParams, b: BrewParams) => PARAMS.filter((c) => a[c.key] !== b[c.key]);
+export const sameParams = (a: BrewParams, b: BrewParams) => a.method === b.method && paramsFor(a.method).every((c) => val(a, c.key) === val(b, c.key));
+/** The cells that differ. A method change is every cell, so the list is the new method's cells. */
+export const changedKeys = (a: BrewParams, b: BrewParams) =>
+  a.method !== b.method ? paramsFor(a.method) : paramsFor(a.method).filter((c) => val(a, c.key) !== val(b, c.key));
 
 /** "93°C (was 94) · −0.5 grind" — the dial-in log's delta line between two brews. */
 export const describeDelta = (p: BrewParams, prev: BrewParams | null): string => {
   if (!prev) return "first brew";
+  if (p.method !== prev.method) return `${METHOD_LABEL[p.method].toLowerCase()} (was ${METHOD_LABEL[prev.method].toLowerCase()})`;
   const parts: string[] = [];
   if (p.tempC !== prev.tempC) parts.push(`${num(p.tempC)}°C (was ${num(prev.tempC)})`);
-  if (p.grind !== prev.grind) parts.push(`${p.grind < prev.grind ? "−" : "+"}${Math.abs(p.grind - prev.grind).toFixed(1)} grind`);
-  if (p.doseG !== prev.doseG) parts.push(`${p.doseG < prev.doseG ? "−" : "+"}${Math.abs(p.doseG - prev.doseG).toFixed(1)} g dose`);
-  if (p.yieldG !== prev.yieldG) parts.push(`${p.yieldG < prev.yieldG ? "−" : "+"}${num(Math.abs(p.yieldG - prev.yieldG))} g yield`);
-  if (p.blooms !== prev.blooms) parts.push(`${p.blooms} blooms (was ${prev.blooms})`);
+  if (p.grind !== prev.grind) parts.push(`${sign(p.grind, prev.grind)}${Math.abs(p.grind - prev.grind).toFixed(1)} grind`);
+  if (p.doseG !== prev.doseG) parts.push(`${sign(p.doseG, prev.doseG)}${Math.abs(p.doseG - prev.doseG).toFixed(1)} g dose`);
+  if (p.yieldG !== prev.yieldG) parts.push(`${sign(p.yieldG, prev.yieldG)}${num(Math.abs(p.yieldG - prev.yieldG))} g ${p.method === "espresso" ? "out" : "water"}`);
+  if (p.method === "filter" && p.blooms !== prev.blooms) parts.push(`${p.blooms} blooms (was ${prev.blooms})`);
+  if (p.method === "espresso" && val(p, "preInfusionS") !== val(prev, "preInfusionS")) parts.push(`${val(p, "preInfusionS")} s pre-infusion (was ${val(prev, "preInfusionS")})`);
+  if (p.targetMs !== prev.targetMs) parts.push(`target ${fmtTime(p.targetMs)} (was ${fmtTime(prev.targetMs)})`);
   return parts.length ? parts.join(" · ") : "same as last";
 };
 
 /** "−0.5 FINER" · "+10 G" · "−1°C" · "SAME" — how a preferred value sits against the overall median. */
-export const describePreference = (key: keyof BrewParams, v: number, b: number): string => {
+export const describePreference = (key: ParamKey, v: number, b: number): string => {
   if (v === b) return "SAME";
-  const sign = v < b ? "−" : "+";
   const d = Math.abs(v - b);
   switch (key) {
-    case "grind": return `${sign}${d.toFixed(1)} ${v < b ? "FINER" : "COARSER"}`;
-    case "doseG": return `${sign}${d.toFixed(1)} G`;
-    case "yieldG": return `${sign}${num(d)} G`;
-    case "tempC": return `${sign}${num(d)}°C`;
-    case "blooms": return `${sign}${d} ${d === 1 ? "BLOOM" : "BLOOMS"}`;
+    case "grind": return `${sign(v, b)}${d.toFixed(1)} ${v < b ? "FINER" : "COARSER"}`;
+    case "doseG": return `${sign(v, b)}${d.toFixed(1)} G`;
+    case "yieldG": return `${sign(v, b)}${num(d)} G`;
+    case "tempC": return `${sign(v, b)}${num(d)}°C`;
+    case "blooms": return `${sign(v, b)}${d} ${d === 1 ? "BLOOM" : "BLOOMS"}`;
+    case "preInfusionS": return `${sign(v, b)}${d} S`;
+    case "targetMs": return `${sign(v, b)}${secs(d)} S`;
   }
 };
 
-export const describeFull = (p: BrewParams, durationMs: number) =>
-  `${p.doseG.toFixed(1)} g → ${num(p.yieldG)} g · ${num(p.tempC)}°C · grind ${p.grind.toFixed(1)} · ${p.blooms} blooms · ${fmtTime(durationMs)}`;
+/** "0:00" is not a time a brew took: an untimed brew shows a dash until one is entered. */
+export const fmtTimeOrDash = (ms: number) => (ms > 0 ? fmtTime(ms) : "—");
+
+/** "+11 s" · "−4 s" · "on target" · "" — the measured time against the recipe's. Empty while untimed. */
+export const durationDelta = (durationMs: number, targetMs: number): string => {
+  if (durationMs <= 0) return "";
+  const d = secs(durationMs) - secs(targetMs);
+  if (d === 0) return "on target";
+  return `${d < 0 ? "−" : "+"}${Math.abs(d)} s`;
+};
+
+export const describeFull = (p: BrewParams, durationMs: number) => {
+  const time = durationMs > 0 ? fmtTime(durationMs) : "untimed";
+  return p.method === "espresso"
+    ? `${p.doseG.toFixed(1)} g → ${num(p.yieldG)} g · ${num(p.tempC)}°C · grind ${p.grind.toFixed(1)} · ${val(p, "preInfusionS")} s pre-infusion · ${time} (target ${fmtTime(p.targetMs)})`
+    : `${p.doseG.toFixed(1)} g → ${num(p.yieldG)} g · ${num(p.tempC)}°C · grind ${p.grind.toFixed(1)} · ${p.blooms} blooms · ${time} (target ${fmtTime(p.targetMs)})`;
+};
 
 const DAY = 86_400_000;
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();

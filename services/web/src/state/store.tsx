@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../api/client";
-import type { Bean, Brew, BrewParams, FlavourTag, Friends, Me, RoasterScope, Unlocked } from "../api/types";
-import { sameParams } from "../lib/format";
+import type { Bean, Brew, BrewMethod, BrewParams, FlavourTag, Friends, Me, RoasterScope, Unlocked } from "../api/types";
+import { changedKeys, METHOD_DEFAULTS, fmtTime } from "../lib/format";
 
 export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "profile" | "roasters" | "passport" | "friends" | "beanedit";
-export type Sheet = null | "adjust" | "switcher";
+export type Sheet = null | "adjust" | "switcher" | "method";
 
 /** Whose numbers the ticket is carrying, until they have been brewed once and become the user's own. */
 export interface TicketSource { name: string; number: number }
@@ -12,7 +12,6 @@ export interface TicketSource { name: string; number: number }
 /** `label` names the action button; it reads UNDO when absent. */
 export interface Toast { msg: string; undo?: () => void; label?: string }
 
-export const METHOD_DEFAULTS: BrewParams = { grind: 4.5, doseG: 15, yieldG: 250, tempC: 94, blooms: 2 };
 const STAMP_TOAST_DELAY_MS = 4600;
 const TOAST_MS = 4200;
 
@@ -36,13 +35,20 @@ interface Store {
 
   params: BrewParams;
   base: BrewParams;
-  setParam: (key: keyof BrewParams, value: number) => void;
+  setParam: (key: Exclude<keyof BrewParams, "method">, value: number) => void;
+  /** Switches the ticket's method; the base becomes this bag's last brew of that method, else its defaults. */
+  setMethod: (m: BrewMethod) => void;
+  /** The bag's last brew of a method, or null: what the method sheet says the switch would load. */
+  lastOfMethod: (m: BrewMethod) => Brew | null;
   setParams: (p: BrewParams) => void;
   /** `source` names whose numbers these are; the ticket says so until the first time they are brewed (§5). */
   loadParams: (p: BrewParams, source?: TicketSource | null) => void;
   ticketSource: TicketSource | null;
 
-  commitBrew: (durationMs: number, pourMarkersMs: number[]) => Promise<void>;
+  /** `durationMs` null logs the brew untimed: the recipe is written, the time comes later. */
+  commitBrew: (durationMs: number | null, pourMarkersMs: number[]) => Promise<void>;
+  /** The measured time for a brew logged without the timer. */
+  setBrewDuration: (brewId: string, durationMs: number) => Promise<void>;
   rateBrew: (brewId: string, rating: number | null, defects: string[] | null) => Promise<void>;
   ratePrompt: Brew | null;
   dismissRatePrompt: () => void;
@@ -99,8 +105,8 @@ export function StoreProvider({ children, showSplash = true }: { children: React
   const [screen, setScreen] = useState<Screen>(showSplash ? "splash" : "home");
   const [sheet, setSheet] = useState<Sheet>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
-  const [params, setParamsState] = useState<BrewParams>(METHOD_DEFAULTS);
-  const [base, setBase] = useState<BrewParams>(METHOD_DEFAULTS);
+  const [params, setParamsState] = useState<BrewParams>(METHOD_DEFAULTS.filter);
+  const [base, setBase] = useState<BrewParams>(METHOD_DEFAULTS.filter);
   const [ratePrompt, setRatePrompt] = useState<Brew | null>(null);
   const [tagTarget, setTagTarget] = useState<Brew | null>(null);
   const [wheelOpen, setWheelOpen] = useState(false);
@@ -168,12 +174,19 @@ export function StoreProvider({ children, showSplash = true }: { children: React
     showToast(`✦ Passport stamped — ${unlocked.map((u) => u.title.toUpperCase()).join(", ")}`, () => { setToast(null); setScreen("passport"); }, "PASSPORT →");
   };
 
-  const setParam = (key: keyof BrewParams, value: number) => setParamsState((p) => ({ ...p, [key]: value }));
+  const setParam = (key: Exclude<keyof BrewParams, "method">, value: number) => setParamsState((p) => ({ ...p, [key]: value }));
+  const lastOfMethod = useCallback((m: BrewMethod) => (currentBean ? brewsFor(currentBean.id).find((b) => b.params.method === m) ?? null : null), [currentBean, brewsFor]);
+  const setMethod = (m: BrewMethod) => {
+    const next = lastOfMethod(m)?.params ?? METHOD_DEFAULTS[m];
+    setParamsState(next);
+    setBase(next);
+    setTicketSource(null);
+  };
   const loadParams = (p: BrewParams, source: TicketSource | null = null) => { setParamsState(p); setTicketSource(source); };
 
   const patchBean = (bean: Bean) => setBeans((bs) => bs.map((b) => (b.id === bean.id ? bean : b)));
 
-  const commitBrew = async (durationMs: number, pourMarkersMs: number[]) => {
+  const commitBrew = async (durationMs: number | null, pourMarkersMs: number[]) => {
     if (!currentBean) return;
     const bean = currentBean;
     const p = params;
@@ -187,7 +200,7 @@ export function StoreProvider({ children, showSplash = true }: { children: React
       setTags([]);
       // Rating is instant: the card comes up with the brew (§6). Undo sits quietly in the toast.
       setRatePrompt(brew);
-      showToast(`Brew N° ${brew.number} logged — ${msToClock(durationMs)}`, () => {
+      showToast(`Brew N° ${brew.number} logged — ${durationMs ? fmtTime(durationMs) : "untimed"}`, () => {
         window.clearTimeout(stampT.current);
         setRatePrompt(null);
         setToast(null);
@@ -202,6 +215,16 @@ export function StoreProvider({ children, showSplash = true }: { children: React
       stampT.current = window.setTimeout(() => celebrate(brew.newlyUnlocked), STAMP_TOAST_DELAY_MS);
     } catch (e) {
       showToast(e instanceof ApiError ? `Not logged — ${e.message}` : "Not logged — the brew log could not be reached");
+    }
+  };
+
+  const setBrewDuration = async (brewId: string, durationMs: number) => {
+    try {
+      const updated = await api.updateBrew(brewId, { durationMs });
+      setBrews((bs) => bs.map((b) => (b.id === updated.id ? updated : b)));
+      setRatePrompt((r) => (r?.id === updated.id ? updated : r));
+    } catch {
+      showToast("Time not saved");
     }
   };
 
@@ -295,8 +318,8 @@ export function StoreProvider({ children, showSplash = true }: { children: React
   const value: Store = {
     loading, error, me, beans, brews, screen, setScreen, sheet, setSheet,
     currentBean, selectBean: setCurrentId, beansOpen, beansArchived, brewsFor, nextNumber,
-    params, base, setParam, setParams: setParamsState, loadParams, ticketSource,
-    commitBrew, rateBrew, ratePrompt, dismissRatePrompt: () => setRatePrompt(null),
+    params, base, setParam, setMethod, lastOfMethod, setParams: setParamsState, loadParams, ticketSource,
+    commitBrew, setBrewDuration, rateBrew, ratePrompt, dismissRatePrompt: () => setRatePrompt(null),
     tagTarget, wheelOpen, openWheel, closeWheel, tags, setTags,
     addBean, patchBean, archiveBean, keepBean, setBrewPrivacy, setSharing,
     hasFriends, scope: hasFriends ? scope : "mine", setScope, friends, friendsError, loadFriends,
@@ -306,8 +329,6 @@ export function StoreProvider({ children, showSplash = true }: { children: React
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-const msToClock = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
-
 export function useStore(): Store {
   const s = useContext(Ctx);
   if (!s) throw new Error("useStore outside StoreProvider");
@@ -316,5 +337,5 @@ export function useStore(): Store {
 
 export const useChangeCount = () => {
   const { params, base } = useStore();
-  return sameParams(params, base) ? 0 : (Object.keys(params) as (keyof BrewParams)[]).filter((k) => params[k] !== base[k]).length;
+  return changedKeys(params, base).length;
 };

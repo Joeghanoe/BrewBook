@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { Profile as ProfileData, ProfileBean, ProfileRoaster } from "../api/types";
 import { Rule } from "../components/Chrome";
-import { describePreference, fmtTime, num, PARAMS, stars } from "../lib/format";
+import { describePreference, fmtTime, METHOD_LABEL, num, paramsFor, stars, val } from "../lib/format";
 import { useStore } from "../state/store";
 
 type State = { kind: "loading" } | { kind: "error"; msg: string } | { kind: "ready"; data: ProfileData };
@@ -144,9 +144,10 @@ const Preferences = ({ p }: { p: ProfileData }) => {
   return (
     <div style={{ marginTop: 4 }}>
       {!preferred && <div className="hint" style={{ textAlign: "left", padding: "10px 0 2px" }}>Rate a brew ★4 or better and your preferred ticket appears here. Until then, your medians.</div>}
-      {PARAMS.map((cfg) => {
-        const v = shown[cfg.key];
-        const b = overall[cfg.key];
+      <div className="pref-row"><span className="k">METHOD</span><span className="d">{METHOD_LABEL[overall.method]}</span><span className="v">brewed most</span></div>
+      {paramsFor(overall.method).map((cfg) => {
+        const v = val(shown, cfg.key);
+        const b = val(overall, cfg.key);
         const delta = preferred ? describePreference(cfg.key, v, b) : "";
         return (
           <div key={cfg.key} className="pref-row">

@@ -1,11 +1,18 @@
 // Wire types for /api/v1. Mirror services/api/src/Brewbook.Api/Contracts/Dtos.cs.
 
+export type BrewMethod = "filter" | "espresso";
+
+/** The ticket. `blooms` is filter's, `preInfusionS` espresso's; the other method carries 0 / null. */
 export interface BrewParams {
+  method: BrewMethod;
   grind: number;
   doseG: number;
   yieldG: number;
   tempC: number;
   blooms: number;
+  preInfusionS: number | null;
+  /** The recipe's planned time; a brew's `durationMs` is what happened. */
+  targetMs: number;
 }
 
 export interface Me {

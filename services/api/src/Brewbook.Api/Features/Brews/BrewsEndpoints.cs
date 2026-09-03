@@ -32,14 +32,16 @@ public static class BrewsEndpoints
             var beanExists = await db.Beans.AnyAsync(b => b.Id == req.BeanId && b.UserId == me.Id, ct);
             if (!beanExists) return Results.ValidationProblem(new Dictionary<string, string[]> { ["beanId"] = ["Unknown bean."] });
 
-            var p = req.Params;
+            var p = req.Params.ToDomain().Normalised();
             var brew = new Brew
             {
                 Id = Guid.NewGuid(),
                 UserId = me.Id,
                 BeanId = req.BeanId,
-                Grind = p.Grind, DoseG = p.DoseG, YieldG = p.YieldG, TempC = p.TempC, Blooms = p.Blooms,
-                DurationMs = req.DurationMs,
+                Method = p.Method, Grind = p.Grind, DoseG = p.DoseG, YieldG = p.YieldG, TempC = p.TempC,
+                Blooms = p.Blooms, PreInfusionS = p.PreInfusionS, TargetMs = p.TargetMs,
+                // Untimed until a time arrives: the scale's timer, typed in on the rate card.
+                DurationMs = req.DurationMs ?? 0,
                 PourMarkersMs = (req.PourMarkersMs ?? []).Where(m => m >= 0).OrderBy(m => m).ToList(),
                 // Rating publishes; the default decides whether that reaches friends, per brew after this.
                 IsPrivate = !me.Required.ShareRatedByDefault,
@@ -76,6 +78,18 @@ public static class BrewsEndpoints
             db.Brews.Remove(brew);
             await db.SaveChangesAsync(ct);
             return Results.NoContent();
+        });
+
+        // The brew after the fact: for now only the measured time, for a brew logged without the timer.
+        g.MapPatch("/{id:guid}", async (Guid id, UpdateBrewRequest req, CurrentUser me, BrewbookDbContext db, CancellationToken ct) =>
+        {
+            if (req.DurationMs is { } d && !ValidDuration(d))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["durationMs"] = [DurationMessage] });
+            var brew = await db.Brews.Include(b => b.FlavourTags).SingleOrDefaultAsync(b => b.Id == id && b.UserId == me.Id, ct);
+            if (brew is null) return Results.NotFound();
+            if (req.DurationMs is { } duration) brew.DurationMs = duration;
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(BrewResponse.From(brew));
         });
 
         g.MapPatch("/{id:guid}/rating", async (Guid id, RateBrewRequest req, CurrentUser me, BrewbookDbContext db, AchievementService achievements, CancellationToken ct) =>
@@ -131,17 +145,23 @@ public static class BrewsEndpoints
     private static List<UnlockedDto> Unlocked(IReadOnlyList<string> keys)
         => keys.Select(k => new UnlockedDto(k, AchievementCatalogue.Find(k)?.Title ?? k)).ToList();
 
+    private const string DurationMessage = "Duration must be under an hour.";
+    private static bool ValidDuration(int ms) => ms is >= 0 and <= 3_600_000;
+
     private static Dictionary<string, string[]> Validate(CreateBrewRequest req)
     {
         var e = new Dictionary<string, string[]>();
         var p = req.Params;
         if (p is null) { e["params"] = ["Params are required."]; return e; }
+        if (!Enum.IsDefined(p.Method)) e["params.method"] = ["Unknown brew method."];
         if (p.Grind < 0 || p.Grind > 100) e["params.grind"] = ["Grind must be 0–100."];
         if (p.DoseG <= 0 || p.DoseG > 500) e["params.doseG"] = ["Dose must be 0–500 g."];
         if (p.YieldG <= 0 || p.YieldG > 5000) e["params.yieldG"] = ["Yield must be 0–5000 g."];
         if (p.TempC < 0 || p.TempC > 100) e["params.tempC"] = ["Water must be 0–100 °C."];
         if (p.Blooms < 0 || p.Blooms > 20) e["params.blooms"] = ["Blooms must be 0–20."];
-        if (req.DurationMs < 0 || req.DurationMs > 3_600_000) e["durationMs"] = ["Duration must be under an hour."];
+        if (p.PreInfusionS is < 0 or > 60) e["params.preInfusionS"] = ["Pre-infusion must be 0–60 s."];
+        if (!ValidDuration(p.TargetMs)) e["params.targetMs"] = ["Target time must be under an hour."];
+        if (req.DurationMs is { } d && !ValidDuration(d)) e["durationMs"] = [DurationMessage];
         return e;
     }
 }

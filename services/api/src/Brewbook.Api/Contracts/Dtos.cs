@@ -20,10 +20,15 @@ public sealed record MeResponse(
 
 public sealed record UpdateMeRequest(bool? ShareRatedByDefault);
 
-public sealed record BrewParamsDto(decimal Grind, decimal DoseG, decimal YieldG, decimal TempC, int Blooms)
+/// <summary>
+/// The ticket on the wire. <c>method</c> is <c>filter</c> or <c>espresso</c>; the trailing fields
+/// default so an older client that only knows the five filter values still brews filter.
+/// </summary>
+public sealed record BrewParamsDto(decimal Grind, decimal DoseG, decimal YieldG, decimal TempC, int Blooms,
+    BrewMethod Method = BrewMethod.Filter, int? PreInfusionS = null, int TargetMs = BrewParams.FilterTargetMs)
 {
-    public static BrewParamsDto From(BrewParams p) => new(p.Grind, p.DoseG, p.YieldG, p.TempC, p.Blooms);
-    public BrewParams ToDomain() => new(Grind, DoseG, YieldG, TempC, Blooms);
+    public static BrewParamsDto From(BrewParams p) => new(p.Grind, p.DoseG, p.YieldG, p.TempC, p.Blooms, p.Method, p.PreInfusionS, p.TargetMs);
+    public BrewParams ToDomain() => new(Method, Grind, DoseG, YieldG, TempC, Blooms, PreInfusionS, TargetMs);
 }
 
 public sealed record BeanResponse(
@@ -212,7 +217,11 @@ public sealed record BrewResponse(
 
 public sealed record SetBrewPrivacyRequest(bool IsPrivate);
 
-public sealed record CreateBrewRequest(Guid BeanId, BrewParamsDto Params, int DurationMs, IReadOnlyList<int>? PourMarkersMs);
+/// <summary><c>durationMs</c> null or 0 logs the brew untimed; the time can be entered afterwards.</summary>
+public sealed record CreateBrewRequest(Guid BeanId, BrewParamsDto Params, int? DurationMs, IReadOnlyList<int>? PourMarkersMs);
+
+/// <summary>A brew after the fact. Every field is optional; null leaves it as it was.</summary>
+public sealed record UpdateBrewRequest(int? DurationMs);
 
 public sealed record RateBrewRequest(int? Rating, IReadOnlyList<string>? Defects);
 

@@ -1,17 +1,16 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { FadeUp } from "../components/Anim";
 import { Backdrop, Cta, DashedRule, Defect, Empty, Hint, Outline, Sheet, SheetHead, Spacer } from "../components/Chrome";
 import { EyeGlyph, WheelIcon } from "../components/Icons";
 import { Screen } from "../components/Chrome";
 import { Cell, Perforation, Ticket, TicketFoot, TicketGrid, TicketHead, TicketMethod } from "../components/Ticket";
-import { changedKeys, daysOffRoast, fmtTime, lastLabel, PARAMS, round1, sameAsLabel } from "../lib/format";
+import { changedKeys, daysOffRoast, durationDelta, fmtTime, lastLabel, METHOD_LABEL, METHODS, paramsFor, round1, sameAsLabel, val, whenLabel } from "../lib/format";
 import { useStore } from "../state/store";
 import { c, g, tabular } from "../theme/text";
 import { C } from "../theme/tokens";
 
 const DEFECTS = ["Sour", "Bitter", "Thin", "Harsh"];
-const TARGET_MS = 150_000;
 
 export const Home = () => {
   const s = useStore();
@@ -40,20 +39,20 @@ export const Home = () => {
         <>
           <Ticket>
             <TicketHead number={String(s.nextNumber).padStart(3, "0")} />
-            <TicketMethod />
-            <TicketGrid cells={[
-              ...PARAMS.map((cfg) => {
-                const v = s.params[cfg.key];
-                const b = s.base[cfg.key];
-                const changed = v !== b;
-                return <Cell key={cfg.key} label={cfg.label} value={cfg.fmt(v)} unit={cfg.cellUnit} was={changed ? `was ${cfg.fmt(b)}` : ""} changed={changed} onPress={() => s.setSheet("adjust")} />;
-              }),
-              <Cell key="time" label="TIME" value={fmtTime(TARGET_MS)} onPress={() => s.setSheet("adjust")} />,
-            ]} />
+            <TicketMethod label={METHOD_LABEL[s.params.method]} onPress={() => s.setSheet("method")} />
+            <TicketGrid cells={paramsFor(s.params.method).map((cfg) => {
+              const v = val(s.params, cfg.key);
+              const b = val(s.base, cfg.key);
+              const sameMethod = s.params.method === s.base.method;
+              const changed = !sameMethod || v !== b;
+              return <Cell key={cfg.key} label={cfg.label} value={cfg.fmt(v)} unit={cfg.cellUnit} was={changed && sameMethod ? `was ${cfg.fmt(b)}` : ""} changed={changed} onPress={() => s.setSheet("adjust")} />;
+            })} />
             <TicketFoot
               text={s.ticketSource
                 ? `from ${s.ticketSource.name}'s N° ${String(s.ticketSource.number).padStart(3, "0")}`
-                : changes.length
+                : s.params.method !== s.base.method
+                  ? `${METHOD_LABEL[s.params.method].toLowerCase()} — was ${METHOD_LABEL[s.base.method].toLowerCase()}`
+                  : changes.length
                   ? `${changes.length} ${changes.length === 1 ? "change" : "changes"} from last brew`
                   : sameAsLabel(bean.lastBrewedAt)}
               stamp="UNBREWED" />
@@ -63,7 +62,10 @@ export const Home = () => {
               <Text style={st.brewText}>{"\u25B6\uFE0E  BREW"}</Text>
             </Pressable>
           </Ticket>
-          <Hint style={{ marginTop: 11 }}>tap any value to adjust · speak changes while you brew</Hint>
+          <Pressable style={st.linkHint} onPress={() => { s.dismissRatePrompt(); s.setSheet(null); void s.commitBrew(null, []); }}>
+            <Text style={st.linkHintText}>timed on the scale? <Text style={st.linkHintLink}>LOG WITHOUT TIMER</Text></Text>
+          </Pressable>
+          <Hint style={{ marginTop: 6 }}>tap any value to adjust · speak changes while you brew</Hint>
           <Spacer />
           <View style={st.bar}>
             <Outline style={{ flex: 1 }} onPress={() => s.setSheet("adjust")}>ADJUST</Outline>
@@ -73,6 +75,7 @@ export const Home = () => {
       )}
       {s.sheet === "adjust" && <AdjustSheet />}
       {s.sheet === "switcher" && <SwitcherSheet />}
+      {s.sheet === "method" && <MethodSheet />}
     </Screen>
   );
 };
@@ -87,7 +90,7 @@ const FirstBag = () => {
     <View style={st.firstbag}>
       <Ticket ghost style={{ marginHorizontal: 0 }}>
         <TicketHead number="001" />
-        <TicketGrid cells={[...PARAMS.map((cfg) => cfg.label), "TIME"].map((label) => <Cell key={label} label={label} value="—" ghost />)} />
+        <TicketGrid cells={paramsFor("filter").map((cfg) => <Cell key={cfg.key} label={cfg.label} value="—" ghost />)} />
         <TicketFoot text="nothing to dial in yet" stamp="EMPTY" />
       </Ticket>
       <Text style={st.firstbagText}>A brew is one bag of coffee, dialled in. Add the bag and the ticket writes itself.</Text>
@@ -101,6 +104,9 @@ const RateCard = () => {
   const s = useStore();
   const brew = s.ratePrompt!;
   const [defects, setDefects] = useState<string[]>(brew.defects);
+  const [time, setTime] = useState("");
+  const typed = parseClock(time);
+  const saveTime = () => { if (typed !== null && typed > 0) void s.setBrewDuration(brew.id, typed); };
   const toggle = (d: string) => {
     const next = defects.includes(d) ? defects.filter((x) => x !== d) : [...defects, d];
     setDefects(next);
@@ -117,6 +123,17 @@ const RateCard = () => {
         <Text style={st.rateTitle}>RATE N° {String(brew.number).padStart(3, "0")}</Text>
         <Pressable onPress={s.dismissRatePrompt} accessibilityLabel="Skip rating" style={{ paddingVertical: 4, paddingHorizontal: 6 }}><Text style={{ color: C.text50, fontSize: 15 }}>✕</Text></Pressable>
       </View>
+      {brew.durationMs === 0 && (
+        <View style={st.rateTime}>
+          <Text style={st.rateTimeK}>TIME</Text>
+          <TextInput style={st.rateTimeInput} keyboardType="numbers-and-punctuation" placeholder="m:ss" placeholderTextColor={C.text45}
+            value={time} onChangeText={setTime} onBlur={saveTime} onSubmitEditing={saveTime} accessibilityLabel="Brew time" />
+          <Text style={st.rateTimeV}>{typed !== null && typed > 0 ? durationDelta(typed, brew.params.targetMs) || "on target" : `target ${fmtTime(brew.params.targetMs)}`}</Text>
+        </View>
+      )}
+      {brew.durationMs > 0 && !!durationDelta(brew.durationMs, brew.params.targetMs) && (
+        <View style={st.rateTime}><Text style={st.rateTimeK}>TIME</Text><Text style={st.rateTimeV}>{fmtTime(brew.durationMs)} · {durationDelta(brew.durationMs, brew.params.targetMs)} vs target</Text></View>
+      )}
       <View style={st.stars}>
         {[1, 2, 3, 4, 5].map((n) => (
           <Pressable key={n} onPress={() => pick(n)} style={({ pressed }) => [st.star, pressed && { backgroundColor: C.copper20 }]}><Text style={{ fontSize: 19, color: C.copperLight }}>★</Text></Pressable>
@@ -138,9 +155,9 @@ const AdjustSheet = () => {
       <Backdrop onPress={() => s.setSheet(null)} />
       <Sheet>
         <SheetHead title="ADJUST" count={n ? `${n} changed` : "nothing changed yet"} />
-        {PARAMS.map((cfg) => {
-          const v = s.params[cfg.key];
-          const b = s.base[cfg.key];
+        {paramsFor(s.params.method).map((cfg) => {
+          const v = val(s.params, cfg.key);
+          const b = val(s.base, cfg.key);
           return (
             <View key={cfg.key}>
             <View style={st.adjRow}>
@@ -148,7 +165,7 @@ const AdjustSheet = () => {
               <Stepper label={`${cfg.label} down`} onPress={() => s.setParam(cfg.key, Math.max(0, round1(v - cfg.step)))}>−</Stepper>
               <View style={{ flex: 1, alignItems: "center" }}>
                 <Text style={st.adjVal}>{cfg.fmt(v)}</Text>
-                <Text style={st.adjDelta}>{v !== b ? cfg.delta(v, b) : ""}</Text>
+                <Text style={st.adjDelta}>{v !== b && s.params.method === s.base.method ? cfg.delta(v, b) : ""}</Text>
               </View>
               <Stepper label={`${cfg.label} up`} onPress={() => s.setParam(cfg.key, round1(v + cfg.step))}>+</Stepper>
             </View>
@@ -167,6 +184,44 @@ const Stepper = ({ children, onPress, label }: { children: string; onPress: () =
     <Text style={{ fontSize: 20, color: C.copperLight }}>{children}</Text>
   </Pressable>
 );
+
+/** "2:41" · "241" (seconds) · "2 41" → ms; null while it is not a time yet. */
+export const parseClock = (raw: string): number | null => {
+  const t = raw.trim();
+  if (!t) return null;
+  const m = /^(\d{1,2})[:\s.](\d{1,2})$/.exec(t);
+  if (m) return Number(m[1]) * 60_000 + Number(m[2]) * 1000;
+  if (/^\d+$/.test(t)) return Number(t) * 1000;
+  return null;
+};
+
+/** One row per method: what switching would put on the ticket, so the choice is not blind. */
+const MethodSheet = () => {
+  const s = useStore();
+  return (
+    <>
+      <Backdrop onPress={() => s.setSheet(null)} />
+      <Sheet>
+        <SheetHead title="METHOD" />
+        {METHODS.map((m) => {
+          const last = s.lastOfMethod(m);
+          return (
+            <View key={m}>
+            <Pressable style={st.switchRow} onPress={() => { s.setMethod(m); s.setSheet(null); }}>
+              <Text style={st.switchMark}>{m === s.params.method ? "✦" : ""}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={st.switchName}>{METHOD_LABEL[m]}</Text>
+                <Text style={st.switchSub}>{last ? `last brewed ${whenLabel(last.brewedAt).toLowerCase()} · ${fmtTime(last.params.targetMs)} target` : "method defaults"}</Text>
+              </View>
+            </Pressable>
+            <DashedRule color={C.copper30} dotted />
+            </View>
+          );
+        })}
+      </Sheet>
+    </>
+  );
+};
 
 const SwitcherSheet = () => {
   const s = useStore();
@@ -211,6 +266,13 @@ const st = StyleSheet.create({
   wheelBtn: { width: 56, height: 56, borderWidth: 1, borderColor: C.copper55, alignItems: "center", justifyContent: "center" },
   firstbag: { flex: 1, paddingHorizontal: 20, paddingBottom: 16, minHeight: 0 },
   firstbagText: { ...g(400, 13, 0, C.text55), lineHeight: 19.5, marginTop: 18, textAlign: "center" },
+  linkHint: { marginTop: 10, minHeight: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 20 },
+  linkHintText: { ...g(400, 12, 0, C.text50), textAlign: "center" },
+  linkHintLink: { ...g(700, 12, 1, C.copper), marginLeft: 4 },
+  rateTime: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10 },
+  rateTimeK: { ...c(700, 10, 2, C.text50), width: 44 },
+  rateTimeInput: { width: 74, paddingVertical: 8, paddingHorizontal: 10, ...c(700, 15, 1, C.text), borderWidth: 1, borderColor: C.copper30 },
+  rateTimeV: g(400, 12, 0, C.text55),
   rate: { marginTop: 10, marginHorizontal: 20, borderWidth: 1, borderColor: C.copper55, backgroundColor: C.copper08, paddingVertical: 14, paddingHorizontal: 16 },
   rateHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   rateTitle: c(700, 11, 3, C.copperLight),

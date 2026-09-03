@@ -68,6 +68,8 @@ public sealed class BrewbookDbContext(DbContextOptions<BrewbookDbContext> option
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.UserId, x.Number }).IsUnique();
             e.HasIndex(x => new { x.BeanId, x.Number });
+            e.Property(x => x.Method).HasConversion<short>();
+            e.Property(x => x.TargetMs).HasDefaultValue(BrewParams.FilterTargetMs);
             e.Property(x => x.Grind).HasPrecision(5, 2);
             e.Property(x => x.DoseG).HasPrecision(6, 2);
             e.Property(x => x.YieldG).HasPrecision(7, 2);

@@ -70,8 +70,10 @@ export const api = {
     return request<LabelScan>("/beans/scan", { method: "POST", body: form });
   },
   brews: () => request<Brew[]>("/brews?limit=500"),
-  createBrew: (beanId: string, params: BrewParams, durationMs: number, pourMarkersMs: number[]) =>
+  /** `durationMs` null logs the brew untimed; the time can be entered afterwards. */
+  createBrew: (beanId: string, params: BrewParams, durationMs: number | null, pourMarkersMs: number[]) =>
     request<Brew>("/brews", json("POST", { beanId, params, durationMs, pourMarkersMs })),
+  updateBrew: (id: string, patch: { durationMs?: number }) => request<Brew>(`/brews/${id}`, json("PATCH", patch)),
   deleteBrew: (id: string) => request<void>(`/brews/${id}`, { method: "DELETE" }),
   rateBrew: (id: string, rating: number | null, defects: string[] | null) =>
     request<Brew>(`/brews/${id}/rating`, json("PATCH", { rating, defects })),

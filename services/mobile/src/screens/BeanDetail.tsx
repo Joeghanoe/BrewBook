@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Act, Chips, Empty, Link, Nav, Rule, Screen, Spacer, SqBtn, TagDash, TagSolid, Title } from "../components/Chrome";
-import { daysOffRoast, describeDelta, describeFull, fmtTime, stars, whenLabel } from "../lib/format";
+import { daysOffRoast, describeDelta, describeFull, fmtTimeOrDash, stars, whenLabel } from "../lib/format";
 import { useStore } from "../state/store";
 import { c, g, tabular } from "../theme/text";
 import { C } from "../theme/tokens";
@@ -51,7 +51,7 @@ export const BeanDetail = () => {
               <Pressable style={st.logLine} onPress={() => setOpen(isOpen ? null : h.id)}>
                 <Text style={st.when}>{whenLabel(h.brewedAt)}</Text>
                 <Text style={st.delta}>{describeDelta(h.params, prev?.params ?? null)}</Text>
-                <Text style={st.dur}>{fmtTime(h.durationMs)}</Text>
+                <Text style={st.dur}>{fmtTimeOrDash(h.durationMs)}</Text>
                 <Text style={[st.stars, !h.rating && { color: C.text35 }]}>{stars(h.rating)}</Text>
               </Pressable>
               {isOpen && (

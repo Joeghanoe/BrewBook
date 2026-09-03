@@ -5,7 +5,7 @@ import { api, ApiError } from "../api/client";
 import type { Roaster, RoasterScope, RoasterVoice, SharedBrew } from "../api/types";
 import { Act, Backdrop, Chips, Cta, Empty, Hint, Leaf, Link, Nav, Rule, Screen, Sheet, SheetHead, Spacer, SqBtn, Title } from "../components/Chrome";
 import { MAP_STYLE } from "../lib/mapStyle";
-import { fmtTime, PARAMS, stars } from "../lib/format";
+import { fmtTimeOrDash, METHOD_LABEL, paramsFor, stars, val } from "../lib/format";
 import { mapsUrl, pinKind, pinRadius, pinVoice, ratingLabel, topLikedFlavours } from "../lib/roasters";
 import { useStore } from "../state/store";
 import { c, g } from "../theme/text";
@@ -268,7 +268,7 @@ const RecipesSheet = ({ roaster, voice, onBack, onClose }: { roaster: Roaster; v
                 <Text style={{ fontSize: 12, color: C.copperLight, letterSpacing: 2 }}>{stars(r.rating)}</Text>
               </View>
               <View style={st.nums}>
-                {[...PARAMS.map((cfg) => ({ k: cfg.label, v: cfg.fmt(r.params[cfg.key]) + cfg.cellUnit })), { k: "TIME", v: fmtTime(r.durationMs) }].map((n) => (
+                {[{ k: "METHOD", v: METHOD_LABEL[r.params.method] }, ...paramsFor(r.params.method).map((cfg) => ({ k: cfg.label, v: cfg.fmt(val(r.params, cfg.key)) + cfg.cellUnit })), { k: "TOOK", v: fmtTimeOrDash(r.durationMs) }].map((n) => (
                   <View key={n.k} style={st.num}><Text style={c(700, 8, 1.5, C.text45)}>{n.k}</Text><Text style={{ ...g(600, 15), marginTop: 2 }}>{n.v}</Text></View>
                 ))}
               </View>

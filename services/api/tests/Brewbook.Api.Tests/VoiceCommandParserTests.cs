@@ -81,6 +81,71 @@ public class VoiceCommandParserTests
         Assert.Equal(Base, r.Params);
     }
 
+    private static readonly BrewParams Espresso = BrewParams.DefaultsFor(BrewMethod.Espresso); // 2.0 / 18 / 36 / 93 / pre 0 / 28 s
+
+    [Theory]
+    [InlineData("pre-infusion 8 seconds", 8)]
+    [InlineData("pre infusion of ten seconds", 10)]
+    [InlineData("preinfuse 5", 5)]
+    [InlineData("no pre-infusion", 0)]
+    public void Parses_pre_infusion_on_espresso(string said, int expected)
+    {
+        var r = VoiceCommandParser.Parse(said, Espresso with { PreInfusionS = 3 });
+        Assert.Equal(expected, r.Params.PreInfusionS);
+        Assert.Equal(Espresso.TargetMs, r.Params.TargetMs);
+    }
+
+    [Theory]
+    [InlineData("shot 30 seconds", 30_000)]
+    [InlineData("25 second shot", 25_000)]
+    [InlineData("target time 32", 32_000)]
+    public void Parses_shot_time_on_espresso(string said, int expected)
+    {
+        var r = VoiceCommandParser.Parse(said, Espresso);
+        Assert.True(r.Applied);
+        Assert.Equal(expected, r.Params.TargetMs);
+    }
+
+    [Fact]
+    public void Pre_infusion_seconds_are_not_also_the_shot_time()
+    {
+        var r = VoiceCommandParser.Parse("pre-infusion 8 seconds", Espresso);
+        Assert.Equal(8, r.Params.PreInfusionS);
+        Assert.Equal(Espresso.TargetMs, r.Params.TargetMs);
+    }
+
+    [Theory]
+    [InlineData("two blooms")]
+    [InlineData("no bloom")]
+    public void Blooms_mean_nothing_on_espresso(string said)
+    {
+        var r = VoiceCommandParser.Parse(said, Espresso);
+        Assert.False(r.Applied);
+        Assert.Equal(Espresso, r.Params);
+    }
+
+    [Theory]
+    [InlineData("target 2:45", 165_000)]
+    [InlineData("target two thirty", 150_000)]
+    [InlineData("target time 3 00", 180_000)]
+    [InlineData("two and a half minutes", 150_000)]
+    [InlineData("time 2 minutes 45", 165_000)]
+    [InlineData("3 minutes", 180_000)]
+    public void Parses_target_time_on_filter(string said, int expected)
+    {
+        var r = VoiceCommandParser.Parse(said, Base with { TargetMs = 1000 });
+        Assert.Equal(expected, r.Params.TargetMs);
+        Assert.Equal(Base.Blooms, r.Params.Blooms);
+        Assert.Equal(Base.TempC, r.Params.TempC);
+    }
+
+    [Fact]
+    public void Pre_infusion_means_nothing_on_filter()
+    {
+        var r = VoiceCommandParser.Parse("pre-infusion 8 seconds", Base);
+        Assert.Null(r.Params.PreInfusionS);
+    }
+
     [Fact]
     public void Restating_the_current_value_is_not_a_change()
     {

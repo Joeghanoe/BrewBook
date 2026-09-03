@@ -105,6 +105,24 @@ public class ProfileTests
     }
 
     [Fact]
+    public async Task Preferences_follow_the_method_brewed_most_and_skip_untimed_brews()
+    {
+        using var f = new ApiFactory();
+        var c = f.ClientFor("ada@example.com");
+        var bean = await CreateBean(c, "Carmen", "Symple");
+        var espresso = new BrewParamsDto(2.0m, 18m, 36m, 93m, 0, BrewMethod.Espresso, 6, 28_000);
+        await CreateBrew(c, bean.Id, espresso, 27_000);
+        await CreateBrew(c, bean.Id, espresso with { Grind = 2.4m, PreInfusionS = 8 }, 0);
+        await CreateBrew(c, bean.Id, Defaults, 150_000);
+
+        var p = (await c.GetFromJsonAsync<ProfileResponse>("/api/v1/profile"))!;
+        Assert.Equal(BrewMethod.Espresso, p.Preferences.Overall!.Method);
+        Assert.Equal(2.2m, p.Preferences.Overall.Grind);
+        Assert.Equal(7, p.Preferences.Overall.PreInfusionS);
+        Assert.Equal(27_000, p.Preferences.TypicalDurationMs);
+    }
+
+    [Fact]
     public async Task Profile_only_counts_the_callers_log()
     {
         using var f = new ApiFactory();

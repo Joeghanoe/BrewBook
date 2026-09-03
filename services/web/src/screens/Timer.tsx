@@ -5,10 +5,8 @@ import { MicIcon } from "../components/Icons";
 import { useLiveSpeech } from "../hooks/useLiveSpeech";
 import { LONG_PRESS_MS } from "../hooks/useLongPress";
 import { useRecorder } from "../hooks/useRecorder";
-import { fmtTime, PARAMS } from "../lib/format";
+import { fmtTime, paramsFor, val } from "../lib/format";
 import { useStore } from "../state/store";
-
-const TARGET_MS = 150_000;
 
 export const Timer = () => {
   const s = useStore();
@@ -56,7 +54,7 @@ export const Timer = () => {
           {running && <div className="dial-ring" />}
           <div className="dial">
             <div className="time">{fmtTime(elapsed)}</div>
-            <div className="target-line">target {fmtTime(TARGET_MS)} · {s.currentBean?.name ?? "—"}</div>
+            <div className="target-line">target {fmtTime(s.params.targetMs)} · {s.currentBean?.name ?? "—"}</div>
           </div>
         </div>
         <div className="markers">
@@ -130,8 +128,8 @@ const VoiceStrip = ({ running }: { running: boolean }) => {
   return (
     <div className="voice-strip" onPointerDown={stopBubble} onPointerUp={stopBubble} onClick={stopBubble}>
       <div className="ticket-strip">
-        {PARAMS.map((c) => {
-          const v = s.params[c.key], b = s.base[c.key], changed = v !== b;
+        {paramsFor(s.params.method).map((c) => {
+          const v = val(s.params, c.key), b = val(s.base, c.key), changed = s.params.method !== s.base.method || v !== b;
           return (
             <div key={c.key} className={"ts-cell" + (changed ? " changed" : "")}>
               <div className="ts-label">{c.label}</div>

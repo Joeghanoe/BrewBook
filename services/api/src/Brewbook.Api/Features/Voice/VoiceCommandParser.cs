@@ -70,20 +70,52 @@ public static partial class VoiceCommandParser
             if (next != p.YieldG) { p = p with { YieldG = next }; changes.Add($"yield changed to {Fmt(next)} g"); }
         }
 
-        // "two blooms", "one more bloom", "no bloom", "skip the bloom"
-        if (BloomNoneRx().IsMatch(t))
+        if (p.Method == BrewMethod.Espresso)
         {
-            if (p.Blooms != 0) { p = p with { Blooms = 0 }; changes.Add("no bloom"); }
+            // "pre-infusion 8 seconds", "no pre-infusion". Parsed first and cut out, so its seconds
+            // are never also read as the shot time.
+            if (PreInfusionNoneRx().Match(t) is { Success: true } pn)
+            {
+                t = t.Remove(pn.Index, pn.Length);
+                if (p.PreInfusionS != 0) { p = p with { PreInfusionS = 0 }; changes.Add("no pre-infusion"); }
+            }
+            else if (PreInfusionRx().Match(t) is { Success: true } pi && TryNum(pi.Groups["n"].Value, out var pre) && pre is >= 0 and <= 60)
+            {
+                t = t.Remove(pi.Index, pi.Length);
+                var n = (int)pre;
+                if (p.PreInfusionS != n) { p = p with { PreInfusionS = n }; changes.Add($"pre-infusion set to {n} s"); }
+            }
+
+            // "shot 28 seconds", "28 second shot", "target 30"
+            if (TryTime(t, ShotKeyRx(), out var shot, bareIsSeconds: true) && shot is > 0 and <= 3_600_000)
+            {
+                if (p.TargetMs != shot) { p = p with { TargetMs = shot }; changes.Add($"shot time set to {Clock(shot)}"); }
+            }
         }
-        else if (BloomAbsRx().Match(t) is { Success: true } ba && TryNum(ba.Groups["n"].Value, out var bl) && bl is >= 0 and <= 20)
+        else
         {
-            var n = (int)bl;
-            if (p.Blooms != n) { p = p with { Blooms = n }; changes.Add($"blooms set to ×{n}"); }
-        }
-        else if (BloomRelRx().Match(t) is { Success: true } br)
-        {
-            var n = Math.Clamp(p.Blooms + (IsDown(br.Groups["dir"].Value) ? -1 : 1), 0, 20);
-            if (n != p.Blooms) { p = p with { Blooms = n }; changes.Add($"blooms changed to ×{n}"); }
+            // "two blooms", "one more bloom", "no bloom", "skip the bloom"
+            if (BloomNoneRx().IsMatch(t))
+            {
+                if (p.Blooms != 0) { p = p with { Blooms = 0 }; changes.Add("no bloom"); }
+            }
+            else if (BloomAbsRx().Match(t) is { Success: true } ba && TryNum(ba.Groups["n"].Value, out var bl) && bl is >= 0 and <= 20)
+            {
+                var n = (int)bl;
+                if (p.Blooms != n) { p = p with { Blooms = n }; changes.Add($"blooms set to ×{n}"); }
+            }
+            else if (BloomRelRx().Match(t) is { Success: true } br)
+            {
+                var n = Math.Clamp(p.Blooms + (IsDown(br.Groups["dir"].Value) ? -1 : 1), 0, 20);
+                if (n != p.Blooms) { p = p with { Blooms = n }; changes.Add($"blooms changed to ×{n}"); }
+            }
+
+
+            // "target 2:30", "target two thirty", "two and a half minutes", "time 2 minutes 45"
+            if (TryTime(t, TargetKeyRx(), out var target) && target is > 0 and <= 3_600_000)
+            {
+                if (p.TargetMs != target) { p = p with { TargetMs = target }; changes.Add($"target time set to {Clock(target)}"); }
+            }
         }
 
         var summary = changes.Count == 0 ? "nothing recognised — ticket unchanged" : string.Join(" · ", changes);
@@ -112,6 +144,45 @@ public static partial class VoiceCommandParser
         return decimal.TryParse(s.Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out v);
     }
 
+    /// <summary>
+    /// A spoken duration in ms. "2:30", "2 minutes 30", "two and a half minutes" and "150 seconds" stand
+    /// on their own; a bare "2 30" needs the keyword in front, or it could be any two numbers.
+    /// </summary>
+    private static bool TryTime(string t, Regex keyword, out int ms, bool bareIsSeconds = false)
+    {
+        ms = 0;
+        var k = keyword.Match(t);
+        // "25 second shot" puts the keyword last; with nothing after it, the whole utterance is the time.
+        var after = k.Success && k.Index + k.Length < t.Length ? t[(k.Index + k.Length)..] : t;
+        if (ClockRx().Match(after) is { Success: true } c)
+            return Set(int.Parse(c.Groups["m"].Value, CultureInfo.InvariantCulture), int.Parse(c.Groups["s"].Value, CultureInfo.InvariantCulture), out ms);
+        if (MinutesRx().Match(after) is { Success: true } mn && TryNum(mn.Groups["m"].Value, out var mins))
+        {
+            var secs = mn.Groups["s"].Success ? int.Parse(mn.Groups["s"].Value, CultureInfo.InvariantCulture) : 0;
+            if (mn.Groups["half"].Success) secs += 30;
+            ms = (int)(mins * 60_000) + secs * 1000;
+            return true;
+        }
+        if (k.Success && PairRx().Match(after) is { Success: true } pr)
+            return Set(int.Parse(pr.Groups["m"].Value, CultureInfo.InvariantCulture), int.Parse(pr.Groups["s"].Value, CultureInfo.InvariantCulture), out ms);
+        if (SecondsRx().Match(after) is { Success: true } sc && TryNum(sc.Groups["s"].Value, out var seconds))
+        {
+            ms = (int)(seconds * 1000);
+            return true;
+        }
+        // "target 32" on espresso can only mean seconds; on filter a bare number is left alone.
+        if (bareIsSeconds && k.Success && BareRx().Match(after) is { Success: true } bare && TryNum(bare.Groups["s"].Value, out var bareSeconds))
+        {
+            ms = (int)(bareSeconds * 1000);
+            return true;
+        }
+        return false;
+
+        static bool Set(int m, int s, out int ms) { ms = m * 60_000 + s * 1000; return s < 60; }
+    }
+
+    private static string Clock(int ms) => $"{ms / 60_000}:{ms % 60_000 / 1000:00}";
+
     private static bool IsDown(string dir) => dir is "less" or "lower" or "down" or "fewer" or "minus" or "colder" or "cooler";
     private static string Fmt(decimal v) => v.ToString(v == Math.Truncate(v) ? "0" : "0.0#", CultureInfo.InvariantCulture);
 
@@ -137,6 +208,25 @@ public static partial class VoiceCommandParser
     private static partial Regex YieldAbsRx();
     [GeneratedRegex($@"{Num}\s*(?:grams?|g)\s*{Dir}\s*(?:water|out|yield)")]
     private static partial Regex YieldRelRx();
+
+    [GeneratedRegex(@"\bno pre[- ]?infusion\b")]
+    private static partial Regex PreInfusionNoneRx();
+    [GeneratedRegex($@"pre[- ]?infus(?:e|ion)\s*(?:to|of|at|for)?\s*{Num}\s*(?:seconds?|secs?|s\b)?")]
+    private static partial Regex PreInfusionRx();
+    [GeneratedRegex(@"(?:shot(?: time)?|target(?: time)?|total time|time)\s*(?:to|of|at|for)?\s*")]
+    private static partial Regex ShotKeyRx();
+    [GeneratedRegex(@"(?:target(?: time)?|total time|brew time|time)\s*(?:to|of|at|for)?\s*")]
+    private static partial Regex TargetKeyRx();
+    [GeneratedRegex(@"^\s*(?<m>\d{1,2}):(?<s>\d{2})\b")]
+    private static partial Regex ClockRx();
+    [GeneratedRegex(@"(?<m>\d+(?:[.,]\d+)?)\s*(?<half>and 0\.5\s*)?min(?:ute)?s?\b(?:\s*(?:and\s*)?(?<s>\d{1,2})\b(?:\s*(?:seconds?|secs?|s\b))?)?")]
+    private static partial Regex MinutesRx();
+    [GeneratedRegex(@"^\s*(?<m>\d{1,2})\s+(?<s>\d{2})\b")]
+    private static partial Regex PairRx();
+    [GeneratedRegex(@"(?<s>\d+(?:[.,]\d+)?)\s*(?:seconds?|secs?|s\b)")]
+    private static partial Regex SecondsRx();
+    [GeneratedRegex(@"^\s*(?<s>\d+(?:[.,]\d+)?)\s*$")]
+    private static partial Regex BareRx();
 
     [GeneratedRegex(@"\b(?:no|skip(?: the)?|without|0)\s*blooms?\b")]
     private static partial Regex BloomNoneRx();

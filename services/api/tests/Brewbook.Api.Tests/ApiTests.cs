@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Brewbook.Api.Contracts;
+using Brewbook.Api.Domain;
 
 namespace Brewbook.Api.Tests;
 
@@ -191,6 +192,70 @@ public class ApiTests
         Assert.Equal(Provenance.Missing, res.RoastDate.Provenance);
     }
 
+    [Fact]
+    public async Task Espresso_brew_keeps_pre_infusion_and_has_no_blooms()
+    {
+        using var f = new ApiFactory();
+        var ada = f.ClientFor("ada@example.com");
+        var bean = await CreateBean(ada, "Kiiro");
+        var espresso = new BrewParamsDto(2.0m, 18m, 36m, 93m, 2, Method: BrewMethod.Espresso, PreInfusionS: 8, TargetMs: 28_000);
+        var brew = await CreateBrew(ada, bean.Id, espresso);
+        Assert.Equal(BrewMethod.Espresso, brew.Params.Method);
+        Assert.Equal(0, brew.Params.Blooms);
+        Assert.Equal(8, brew.Params.PreInfusionS);
+        Assert.Equal(28_000, brew.Params.TargetMs);
+
+        // The bag's ticket now carries the espresso numbers, method included.
+        var beans = (await ada.GetFromJsonAsync<List<BeanResponse>>("/api/v1/beans", Json))!;
+        Assert.Equal(brew.Params, beans.Single().LastParams);
+    }
+
+    [Fact]
+    public async Task Filter_brew_drops_pre_infusion()
+    {
+        using var f = new ApiFactory();
+        var ada = f.ClientFor("ada@example.com");
+        var bean = await CreateBean(ada, "Kiiro");
+        var brew = await CreateBrew(ada, bean.Id, Defaults with { PreInfusionS = 8 });
+        Assert.Equal(BrewMethod.Filter, brew.Params.Method);
+        Assert.Null(brew.Params.PreInfusionS);
+        Assert.Equal(150_000, brew.Params.TargetMs);
+    }
+
+    [Fact]
+    public async Task Unknown_method_is_rejected()
+    {
+        using var f = new ApiFactory();
+        var ada = f.ClientFor("ada@example.com");
+        var bean = await CreateBean(ada, "Kiiro");
+        var res = await ada.PostAsJsonAsync("/api/v1/brews", new CreateBrewRequest(bean.Id, Defaults with { Method = (BrewMethod)7 }, 150_000, null), Json);
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Untimed_brew_is_logged_then_timed_afterwards()
+    {
+        using var f = new ApiFactory();
+        var ada = f.ClientFor("ada@example.com");
+        var bean = await CreateBean(ada, "Kiiro");
+        var res = await ada.PostAsJsonAsync("/api/v1/brews", new CreateBrewRequest(bean.Id, Defaults, null, null), Json);
+        res.EnsureSuccessStatusCode();
+        var brew = (await res.Content.ReadFromJsonAsync<BrewResponse>(Json))!;
+        Assert.Equal(0, brew.DurationMs);
+
+        var patched = await ada.PatchAsJsonAsync($"/api/v1/brews/{brew.Id}", new UpdateBrewRequest(161_000), Json);
+        patched.EnsureSuccessStatusCode();
+        var timed = (await patched.Content.ReadFromJsonAsync<BrewResponse>(Json))!;
+        Assert.Equal(161_000, timed.DurationMs);
+
+        var tooLong = await ada.PatchAsJsonAsync($"/api/v1/brews/{brew.Id}", new UpdateBrewRequest(4_000_000), Json);
+        Assert.Equal(HttpStatusCode.BadRequest, tooLong.StatusCode);
+
+        var bob = f.ClientFor("bob@example.com");
+        var other = await bob.PatchAsJsonAsync($"/api/v1/brews/{brew.Id}", new UpdateBrewRequest(1_000), Json);
+        Assert.Equal(HttpStatusCode.NotFound, other.StatusCode);
+    }
+
     private static async Task<BeanResponse> CreateBean(HttpClient c, string name)
     {
         var res = await c.PostAsJsonAsync("/api/v1/beans", new CreateBeanRequest(name, "Symple", "Huila, Colombia", "Washed", null, null, null, null, null, ["Blackberry"], null, null));
@@ -200,8 +265,8 @@ public class ApiTests
 
     private static async Task<BrewResponse> CreateBrew(HttpClient c, Guid beanId, BrewParamsDto? p = null)
     {
-        var res = await c.PostAsJsonAsync("/api/v1/brews", new CreateBrewRequest(beanId, p ?? Defaults, 150_000, [30_000]));
+        var res = await c.PostAsJsonAsync("/api/v1/brews", new CreateBrewRequest(beanId, p ?? Defaults, 150_000, [30_000]), Json);
         res.EnsureSuccessStatusCode();
-        return (await res.Content.ReadFromJsonAsync<BrewResponse>())!;
+        return (await res.Content.ReadFromJsonAsync<BrewResponse>(Json))!;
     }
 }

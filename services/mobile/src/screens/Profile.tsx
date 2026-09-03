@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api, ApiError } from "../api/client";
 import type { Profile as ProfileData, ProfileBean, ProfileRoaster } from "../api/types";
 import { Act, Chip, Chips, Defect, Empty, Hint, Link, Nav, Rule, Screen, Spacer, TagSolid, Title } from "../components/Chrome";
-import { describePreference, fmtTime, num, PARAMS, stars } from "../lib/format";
+import { describePreference, fmtTime, METHOD_LABEL, num, paramsFor, stars, val } from "../lib/format";
 import { useStore } from "../state/store";
 import { c, g, tabular } from "../theme/text";
 import { C } from "../theme/tokens";
@@ -142,9 +142,10 @@ const Preferences = ({ p }: { p: ProfileData }) => {
   return (
     <View style={{ marginTop: 4 }}>
       {!preferred && <Hint left style={{ paddingTop: 10, paddingBottom: 2 }}>Rate a brew ★4 or better and your preferred ticket appears here. Until then, your medians.</Hint>}
-      {PARAMS.map((cfg) => {
-        const v = shown[cfg.key];
-        const b = overall[cfg.key];
+      <View style={st.prefRow}><Text style={st.prefK}>METHOD</Text><Text style={st.prefD}>{METHOD_LABEL[overall.method]}</Text><Text style={st.prefV}>brewed most</Text></View>
+      {paramsFor(overall.method).map((cfg) => {
+        const v = val(shown, cfg.key);
+        const b = val(overall, cfg.key);
         const delta = preferred ? describePreference(cfg.key, v, b) : "";
         return (
           <View key={cfg.key} style={st.prefRow}>

@@ -92,7 +92,7 @@ function TicketArt() {
   return (
     <Ticket style={{ marginTop: 0, marginHorizontal: 0, paddingTop: 14, paddingHorizontal: 18, width: 300 }}>
       <TicketHead number="012" />
-      <TicketMethod />
+      <TicketMethod label="FILTER" />
       <View style={{ backgroundColor: C.ink, borderWidth: 1.5, borderColor: C.ink, marginTop: 9, marginBottom: 14 }}>
         <View style={{ flexDirection: "row", gap: 1.5 }}>
           <Cell label="GRIND" value="4.0" was="was 4.5" changed />

@@ -3,7 +3,7 @@ import { api, ApiError } from "../api/client";
 import type { Roaster, RoasterScope, RoasterVoice, SharedBrew } from "../api/types";
 import { Grabber, Rule } from "../components/Chrome";
 import { loadGoogleMaps, MAP_STYLE, type GMap, type GMarker, type GoogleMaps } from "../lib/googleMaps";
-import { fmtTime, PARAMS, stars } from "../lib/format";
+import { fmtTimeOrDash, METHOD_LABEL, paramsFor, stars, val } from "../lib/format";
 import { mapsUrl, pinKind, pinRadius, pinVoice, ratingLabel, topLikedFlavours } from "../lib/roasters";
 import { useStore } from "../state/store";
 
@@ -304,10 +304,11 @@ const RecipesSheet = ({ roaster, voice, onBack, onClose }: { roaster: Roaster; v
                 <span className="stars">{stars(r.rating)}</span>
               </div>
               <div className="nums">
-                {PARAMS.map((c) => (
-                  <div key={c.key} className="num"><span>{c.label}</span><b>{c.fmt(r.params[c.key])}{c.cellUnit}</b></div>
+                <div className="num"><span>METHOD</span><b>{METHOD_LABEL[r.params.method]}</b></div>
+                {paramsFor(r.params.method).map((c) => (
+                  <div key={c.key} className="num"><span>{c.label}</span><b>{c.fmt(val(r.params, c.key))}{c.cellUnit}</b></div>
                 ))}
-                <div className="num"><span>TIME</span><b>{fmtTime(r.durationMs)}</b></div>
+                <div className="num"><span>TOOK</span><b>{fmtTimeOrDash(r.durationMs)}</b></div>
               </div>
               {(r.flavourTags.length > 0 || r.declaredNotes.length > 0) && (
                 <div className="chips compact" style={{ marginTop: 10 }}>

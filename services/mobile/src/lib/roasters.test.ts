@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Brew, Roaster, RoasterVoice } from "../api/types";
+import { METHOD_DEFAULTS } from "./format";
 import { mapsUrl, pinKind, pinRadius, pinVoice, ratingLabel, topLikedFlavours } from "./roasters";
 
 const brew = (tags: [string, 1 | -1][]): Brew => ({
-  id: "b", beanId: "x", number: 1, params: { grind: 4.5, doseG: 15, yieldG: 250, tempC: 94, blooms: 2 },
+  id: "b", beanId: "x", number: 1, params: METHOD_DEFAULTS.filter,
   durationMs: 0, pourMarkersMs: [], rating: 0, defects: [], brewedAt: "2026-09-01T08:00:00Z",
   flavourTags: tags.map(([flavour, polarity]) => ({ flavour, polarity })), isPrivate: false, newlyUnlocked: [],
 });
