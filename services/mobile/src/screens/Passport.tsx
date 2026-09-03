@@ -4,7 +4,7 @@ import Svg, { G, Path, Text as SText } from "react-native-svg";
 import { api, ApiError } from "../api/client";
 import type { CategoryCoverage, Passport as PassportData } from "../api/types";
 import { FadeUp, Pop } from "../components/Anim";
-import { Act, Chips, Empty, Hint, Nav, Rule, Screen, SqBtn, Title } from "../components/Chrome";
+import { Act, Chips, DashedRule, Empty, Hint, Nav, Rule, Screen, SqBtn, Title } from "../components/Chrome";
 import { whenLabel } from "../lib/format";
 import { fraction, leavesByGroup, ledgerOrder, stampDate } from "../lib/passport";
 import { annular, polar, wedgeAngles, WHEEL_GEOMETRY } from "../lib/wheelGeometry";
@@ -81,7 +81,7 @@ export const Passport = () => {
                   </View>
                   {a.unlocked && a.unlockedAt
                     ? <View style={st.stamp}><Text style={st.stampText}>✦ {stampDate(a.unlockedAt)}</Text></View>
-                    : <><View style={st.leader} /><Text style={st.count}>{a.progress.have} / {a.progress.of}</Text></>}
+                    : <><DashedRule color={C.copper30} dotted style={{ flex: 1, minWidth: 16 }} /><Text style={st.count}>{a.progress.have} / {a.progress.of}</Text></>}
                 </View>
               ))}
             </View>
@@ -147,7 +147,6 @@ const st = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.copper20, minHeight: 56 },
   t: { ...g(700, 13, 2), textTransform: "uppercase" },
   s: { ...g(400, 12, 0, C.text55), marginTop: 3 },
-  leader: { flex: 1, height: 0, borderTopWidth: 1, borderStyle: "dotted", borderTopColor: C.copper30, minWidth: 16 },
   count: { ...c(700, 12, 1, C.text55), ...tabular },
   stamp: { marginLeft: "auto", borderWidth: 1.5, borderColor: C.copperLight, paddingVertical: 5, paddingHorizontal: 8, transform: [{ rotate: "-4deg" }] },
   stampText: c(700, 10, 2, C.copperLight),

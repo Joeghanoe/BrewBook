@@ -21,6 +21,18 @@ Camera, microphone, speech recognition and maps are native modules, so the app n
 Expo SDK 55: iOS builds need Xcode 26.0 or newer, Android builds JDK 17 and an Android SDK. SDK 56
 and later need Xcode 26.4, which is why this stays on 55 until the build machines have it.
 
+### Onto a phone
+
+```bash
+make phone      # Release build onto the plugged-in iPhone, installed and launched
+make sim        # simulator build + Metro
+make check      # typecheck and tests
+```
+
+`make phone` signs with the Apple team in `app.json` (`ios.appleTeamId`). With a free Apple ID the
+install lasts seven days; run it again to renew. The phone needs Developer Mode on and, the first
+time, Settings → General → VPN & Device Management → Trust.
+
 ## Where the log lives
 
 | Variable | Effect |

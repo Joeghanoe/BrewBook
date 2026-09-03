@@ -23,7 +23,6 @@ export const BeanDetail = () => {
         <SqBtn onPress={() => s.setScreen("library")} label="Back to the library">←</SqBtn>
         <Title>BEAN</Title>
         <Spacer />
-        <Link onPress={() => s.setScreen("beanedit")}>EDIT</Link>
         <Link onPress={() => { s.selectBean(bean.id); s.setScreen("home"); }}>BREW THIS →</Link>
       </Nav>
       <Plaque>

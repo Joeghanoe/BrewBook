@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { c, g } from "../theme/text";
 import { C, shadowCard } from "../theme/tokens";
-import { Star } from "./Chrome";
+import { DashedRule, Star } from "./Chrome";
 
 /** The cream card with punched sides. `ghost` is the empty ticket behind the first-bag wall. */
 export const Ticket = ({ children, ghost, style }: { children: ReactNode; ghost?: boolean; style?: StyleProp<ViewStyle> }) => (
@@ -44,7 +44,7 @@ export const TicketFoot = ({ text, stamp }: { text: string; stamp: string }) => 
   </View>
 );
 
-export const Perforation = () => <View style={st.perforation} />;
+export const Perforation = () => <DashedRule color={C.ink40} width={2} style={{ marginHorizontal: -24 }} />;
 
 const st = StyleSheet.create({
   ticket: { marginTop: 18, marginHorizontal: 20, backgroundColor: C.cream, paddingTop: 20, paddingHorizontal: 24, ...shadowCard },
@@ -66,5 +66,4 @@ const st = StyleSheet.create({
   footText: g(400, 12, 0, C.ink65),
   stamp: { flexShrink: 0, alignSelf: "center", marginLeft: 10, borderWidth: 1.5, borderColor: C.rust, paddingVertical: 4, paddingHorizontal: 8, transform: [{ rotate: "-4deg" }] },
   stampText: c(700, 10, 2, C.rust),
-  perforation: { height: 0, borderTopWidth: 2, borderStyle: "dashed", borderTopColor: C.ink40, marginHorizontal: -24 },
 });

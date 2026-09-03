@@ -38,6 +38,16 @@ export const Link = ({ children, onPress, color, style }: { children: ReactNode;
   </Pressable>
 );
 
+/**
+ * A dashed or dotted horizontal rule. React Native only draws dashed borders when all four sides
+ * have them, so the line is a clipped box rather than a one-sided border.
+ */
+export const DashedRule = ({ color, width = 1, dotted, style }: { color: string; width?: number; dotted?: boolean; style?: StyleProp<ViewStyle> }) => (
+  <View style={[{ height: width, overflow: "hidden" }, style]}>
+    <View style={{ height: width * 2 + 2, borderWidth: width, borderStyle: dotted ? "dotted" : "dashed", borderColor: color }} />
+  </View>
+);
+
 export const Grabber = () => <View style={st.grabber}><View style={st.grabberBar} /></View>;
 
 export const Rule = ({ label, right, onPress, color, lineColor, style }: { label: string; right?: string; onPress?: () => void; color?: string; lineColor?: string; style?: StyleProp<ViewStyle> }) => (

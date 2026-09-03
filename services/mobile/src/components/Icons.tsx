@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, Pressable } from "react-native";
 import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
-import { useBlink, useSpin } from "./Anim";
+import { useBlinkTransform, useSpinTransform } from "./Anim";
 
 const AG = Animated.createAnimatedComponent(G);
 
@@ -87,16 +87,16 @@ export const CameraIcon = () => (
 );
 
 export const Seal = ({ scale = 1 }: { scale?: number }) => {
-  const spin = useSpin(26_000);
-  const blink = useBlink(4200, 400);
+  const spin = useSpinTransform(26_000, 100, 122);
+  const blink = useBlinkTransform(4200, 100, 122);
   return (
     <Svg width={230 * scale} height={220 * scale} viewBox="0 0 200 190" fill="none">
       <Path d="M100 12 L188 168 L12 168 Z" stroke="#c2905e" strokeWidth={2} />
       <Path d="M100 30 L173 160 L27 160 Z" stroke="rgba(194,144,94,.4)" strokeWidth={1} />
-      <AG rotation={spin} origin="100, 122">
+      <AG transform={spin}>
         <Circle cx={100} cy={122} r={36} stroke="rgba(216,168,111,.7)" strokeWidth={1.6} strokeDasharray="3 8" />
       </AG>
-      <AG scaleY={blink} origin="100, 122">
+      <AG transform={blink}>
         <Path d="M48 122 Q100 78 152 122 Q100 166 48 122 Z" stroke="#d8a86f" strokeWidth={2.4} fill="#1c1a21" />
         <Ellipse cx={100} cy={122} rx={19} ry={21} stroke="#d8a86f" strokeWidth={2.2} fill="rgba(194,144,94,.14)" />
         <Path d="M100 104 q7 18 0 36" stroke="#d8a86f" strokeWidth={2} />
@@ -106,11 +106,11 @@ export const Seal = ({ scale = 1 }: { scale?: number }) => {
 };
 
 export const ScanEye = () => {
-  const spin = useSpin(1400);
+  const spin = useSpinTransform(1400, 36, 26);
   return (
     <Svg width={70} height={54} viewBox="0 0 72 52" fill="none" stroke="#d8a86f" strokeWidth={2}>
       <Path d="M8 26 Q36 -2 64 26 Q36 54 8 26 Z" />
-      <AG rotation={spin} origin="36, 26"><Circle cx={36} cy={26} r={14} strokeDasharray="4 7" /></AG>
+      <AG transform={spin}><Circle cx={36} cy={26} r={14} strokeDasharray="4 7" /></AG>
     </Svg>
   );
 };

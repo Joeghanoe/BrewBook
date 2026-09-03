@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { FadeUp } from "../components/Anim";
-import { Backdrop, Cta, Defect, Empty, Hint, Outline, Sheet, SheetHead, Spacer } from "../components/Chrome";
+import { Backdrop, Cta, DashedRule, Defect, Empty, Hint, Outline, Sheet, SheetHead, Spacer } from "../components/Chrome";
 import { EyeGlyph, WheelIcon } from "../components/Icons";
 import { Screen } from "../components/Chrome";
 import { Cell, Perforation, Ticket, TicketFoot, TicketGrid, TicketHead, TicketMethod } from "../components/Ticket";
@@ -60,7 +60,7 @@ export const Home = () => {
             <Perforation />
             <Pressable style={({ pressed }) => [st.brewBtn, pressed && { backgroundColor: "rgba(38, 36, 46, 0.05)" }]}
               onPress={() => { s.dismissRatePrompt(); s.setSheet(null); s.setScreen("timer"); }}>
-              <Text style={st.brewText}>▶  BREW</Text>
+              <Text style={st.brewText}>{"\u25B6\uFE0E  BREW"}</Text>
             </Pressable>
           </Ticket>
           <Hint style={{ marginTop: 11 }}>tap any value to adjust · speak changes while you brew</Hint>
@@ -142,7 +142,8 @@ const AdjustSheet = () => {
           const v = s.params[cfg.key];
           const b = s.base[cfg.key];
           return (
-            <View key={cfg.key} style={st.adjRow}>
+            <View key={cfg.key}>
+            <View style={st.adjRow}>
               <View style={{ width: 64 }}><Text style={st.adjLbl}>{cfg.label}</Text><Text style={st.adjUnit}>{cfg.unit}</Text></View>
               <Stepper label={`${cfg.label} down`} onPress={() => s.setParam(cfg.key, Math.max(0, round1(v - cfg.step)))}>−</Stepper>
               <View style={{ flex: 1, alignItems: "center" }}>
@@ -150,6 +151,8 @@ const AdjustSheet = () => {
                 <Text style={st.adjDelta}>{v !== b ? cfg.delta(v, b) : ""}</Text>
               </View>
               <Stepper label={`${cfg.label} up`} onPress={() => s.setParam(cfg.key, round1(v + cfg.step))}>+</Stepper>
+            </View>
+            <DashedRule color={C.copper30} dotted />
             </View>
           );
         })}
@@ -177,7 +180,8 @@ const SwitcherSheet = () => {
           {s.beansOpen.map((b) => {
             const d = daysOffRoast(b.roastDate);
             return (
-              <Pressable key={b.id} style={st.switchRow} onPress={() => { s.selectBean(b.id); s.setSheet(null); }}>
+              <View key={b.id}>
+              <Pressable style={st.switchRow} onPress={() => { s.selectBean(b.id); s.setSheet(null); }}>
                 <Text style={st.switchMark}>{b.id === s.currentBean?.id ? "✦" : ""}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={st.switchName}>{b.name}</Text>
@@ -185,6 +189,8 @@ const SwitcherSheet = () => {
                 </View>
                 <Text style={st.switchLast}>LAST {lastLabel(b.lastBrewedAt)}</Text>
               </Pressable>
+              <DashedRule color={C.copper30} dotted />
+              </View>
             );
           })}
         </ScrollView>
@@ -213,13 +219,13 @@ const st = StyleSheet.create({
   defects: { flexDirection: "row", gap: 8, marginTop: 10, alignItems: "center", flexWrap: "wrap" },
   tagcta: { height: 34, justifyContent: "center", paddingHorizontal: 13 },
   tagctaText: g(600, 12, 1, C.copperLight),
-  adjRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 9, borderBottomWidth: 1, borderStyle: "dotted", borderBottomColor: C.copper30 },
+  adjRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 9 },
   adjLbl: c(700, 10, 2, C.text60),
   adjUnit: { ...g(400, 10, 0, C.text40), marginTop: 2 },
   stepper: { width: 52, height: 48, borderWidth: 1, borderColor: C.copper55, alignItems: "center", justifyContent: "center" },
   adjVal: { ...g(600, 24), ...tabular },
   adjDelta: { ...c(700, 10, 1, C.copperLight), height: 14, lineHeight: 14 },
-  switchRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderStyle: "dotted", borderBottomColor: C.copper30, width: "100%" },
+  switchRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 14, width: "100%" },
   switchMark: { width: 16, color: C.copper, fontSize: 10 },
   switchName: { ...g(600, 16, 1), textTransform: "uppercase" },
   switchSub: { ...g(400, 12, 0, C.text55), marginTop: 2 },

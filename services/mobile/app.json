@@ -18,7 +18,7 @@
         "NSPhotoLibraryUsageDescription": "Brewbook reads a label photo from your library when the camera is not available.",
         "UIViewControllerBasedStatusBarAppearance": false
       },
-      "associatedDomains": []
+      "appleTeamId": "FYGM59T7TB"
     },
     "android": {
       "package": "app.brewbook.mobile",

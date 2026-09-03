@@ -11,7 +11,7 @@ import { annular, polar, wedgeAngles, WHEEL_GEOMETRY } from "../lib/wheelGeometr
 import { useStore } from "../state/store";
 import { c, g } from "../theme/text";
 import { C, courier, grotesk, shadowSheet } from "../theme/tokens";
-import { useBlink } from "../components/Anim";
+import { useBlinkTransform } from "../components/Anim";
 import { Animated } from "react-native";
 
 const AG = Animated.createAnimatedComponent(G);
@@ -43,7 +43,7 @@ export const WheelLayer = () => {
   const [zoom, setZoom] = useState<FlavourCategory | null>(null);
   const { byCat, total } = useCounts();
   const { cx: CX, cy: CY, ro: RO, ri: RI, size, viewBox } = WHEEL_GEOMETRY, N = WHEEL.length;
-  const blink = useBlink(4400, 400);
+  const blink = useBlinkTransform(4400, 170, 166);
   const subtitle = s.tagTarget ? `${s.currentBean?.name ?? "bean"} — ${whenLabel(s.tagTarget.brewedAt).toLowerCase()} · N° ${s.tagTarget.number}` : "no brew logged yet — tags need a brew";
   const done = () => { setZoom(null); void s.closeWheel(); };
 
@@ -83,7 +83,7 @@ export const WheelLayer = () => {
                       </G>
                     );
                   })}
-                  <AG stroke="#c2905e" strokeWidth={1.3} pointerEvents="none" scaleY={blink} origin="170, 166">
+                  <AG stroke="#c2905e" strokeWidth={1.3} pointerEvents="none" transform={blink}>
                     <Path d="M148 166 Q170 146 192 166 Q170 186 148 166 Z" /><Ellipse cx={170} cy={166} rx={6.5} ry={7} />
                   </AG>
                 </Svg>

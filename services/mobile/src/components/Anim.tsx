@@ -92,3 +92,17 @@ export const useBlink = (periodMs: number, squeezeMs = 400, on = true) => {
   }, [v, periodMs, squeezeMs, on]);
   return v;
 };
+
+/**
+ * SVG transforms for animated groups. react-native-svg ignores `origin` on an Animated group, so
+ * the rotation and the squeeze are written out around the centre themselves.
+ */
+export const useSpinTransform = (periodMs: number, cx: number, cy: number) => {
+  const deg = useSpin(periodMs);
+  return deg.interpolate({ inputRange: [0, 360], outputRange: [`rotate(0 ${cx} ${cy})`, `rotate(360 ${cx} ${cy})`] });
+};
+
+export const useBlinkTransform = (periodMs: number, cx: number, cy: number, squeezeMs = 400) => {
+  const v = useBlink(periodMs, squeezeMs);
+  return v.interpolate({ inputRange: [0, 1], outputRange: [`translate(${cx} ${cy}) scale(1 0) translate(${-cx} ${-cy})`, `translate(${cx} ${cy}) scale(1 1) translate(${-cx} ${-cy})`] });
+};

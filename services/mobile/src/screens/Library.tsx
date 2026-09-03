@@ -4,6 +4,7 @@ import type { Bean } from "../api/types";
 import { FadeUp } from "../components/Anim";
 import { Act, Empty, Link, Nav, Rule, Screen, Spacer, Title } from "../components/Chrome";
 import { CameraIcon } from "../components/Icons";
+import { LONG_PRESS_MS } from "../hooks/useLongPress";
 import { brewsLeftLabel, daysOffRoast } from "../lib/format";
 import { useStore } from "../state/store";
 import { c, g } from "../theme/text";
@@ -32,6 +33,8 @@ export const Library = () => {
   const s = useStore();
   const [archiveOpen, setArchiveOpen] = useState(false);
   const openBean = (id: string) => { s.selectBean(id); s.setScreen("bean"); };
+  // Hold a card to edit the bag; a tap opens its log.
+  const editBean = (id: string) => { s.selectBean(id); s.setScreen("beanedit"); };
   return (
     <Screen>
       <Nav>
@@ -41,13 +44,13 @@ export const Library = () => {
       </Nav>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         {s.beansOpen.filter((b) => b.askToArchive).map((b) => <ArchivePrompt key={b.id} bean={b} />)}
-        <Rule label="OPEN BAGS" style={{ marginTop: 18, marginHorizontal: 22 }} />
+        <Rule label="OPEN BAGS" right="HOLD TO EDIT" style={{ marginTop: 18, marginHorizontal: 22 }} />
         <View style={{ paddingTop: 12, paddingHorizontal: 22, gap: 12 }}>
           {s.beansOpen.length === 0 && <Empty style={{ paddingVertical: 14 }}>No open bags — scan a label to add the first one.</Empty>}
           {s.beansOpen.map((b) => {
             const d = daysOffRoast(b.roastDate);
             return (
-              <Pressable key={b.id} style={({ pressed }) => [st.bag, pressed && { backgroundColor: C.copper12 }]} onPress={() => openBean(b.id)}>
+              <Pressable key={b.id} style={({ pressed }) => [st.bag, pressed && { backgroundColor: C.copper12 }]} onPress={() => openBean(b.id)} onLongPress={() => editBean(b.id)} delayLongPress={LONG_PRESS_MS}>
                 <View style={st.bagTop}><Text style={st.bagName} numberOfLines={1}>{b.name}</Text><Text style={st.bagDays}>{d === null ? "— D" : `${d} D`}</Text></View>
                 <Text style={st.bagSub}>{[b.roaster, [b.origin, b.process].filter(Boolean).join(" · ")].filter(Boolean).join(" · ") || "no details on record"}</Text>
                 {b.declaredNotes.length > 0 && <Text style={st.bagNotes}>{b.declaredNotes.join(" · ")}</Text>}
