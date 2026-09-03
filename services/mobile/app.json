@@ -16,6 +16,7 @@
         "NSMicrophoneUsageDescription": "Brewbook listens for ticket changes you say while you brew.",
         "NSSpeechRecognitionUsageDescription": "Brewbook turns what you say into a change on the brew ticket.",
         "NSPhotoLibraryUsageDescription": "Brewbook reads a label photo from your library when the camera is not available.",
+        "NSLocationWhenInUseUsageDescription": "Brewbook sorts the roasters a bag might have come from by how close they are to you.",
         "UIViewControllerBasedStatusBarAppearance": false
       },
       "appleTeamId": "FYGM59T7TB"
@@ -31,7 +32,9 @@
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
-        "INTERNET"
+        "INTERNET",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
       ],
       "predictiveBackGestureEnabled": false,
       "intentFilters": [
@@ -74,6 +77,13 @@
         {
           "microphonePermission": "Brewbook listens for ticket changes you say while you brew.",
           "speechRecognitionPermission": "Brewbook turns what you say into a change on the brew ticket."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Brewbook sorts the roasters a bag might have come from by how close they are to you.",
+          "isAndroidBackgroundLocationEnabled": false
         }
       ],
       [

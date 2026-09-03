@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../api/client";
 import type { Roaster, RoasterScope, RoasterVoice, SharedBrew } from "../api/types";
 import { Grabber, Rule } from "../components/Chrome";
+import { RoasterPicker } from "../components/RoasterPicker";
 import { loadGoogleMaps, MAP_STYLE, type GMap, type GMarker, type GoogleMaps } from "../lib/googleMaps";
 import { fmtTimeOrDash, METHOD_LABEL, paramsFor, stars, val } from "../lib/format";
 import { mapsUrl, pinKind, pinRadius, pinVoice, ratingLabel, topLikedFlavours } from "../lib/roasters";
@@ -169,25 +170,10 @@ const MapView = ({ apiKey, roasters, onPick, onFail }: { apiKey: string; roaster
 
 const RoasterSheet = ({ roaster: r, onClose, onPatched }: { roaster: Roaster; onClose: () => void; onPatched: (r: Roaster) => void }) => {
   const s = useStore();
+  // A wrong pin is fixed the way a missing one is: pick from the candidates, or say none of them.
   const [fixing, setFixing] = useState(false);
-  const [query, setQuery] = useState("");
-  const [busy, setBusy] = useState(false);
   const [wished, setWished] = useState(r.wished);
   const [reading, setReading] = useState<RoasterVoice | null>(null);
-
-  const relocate = async () => {
-    setBusy(true);
-    try {
-      const moved = await api.relocateRoaster(r.id, query.trim() || null);
-      onPatched(moved);
-      setFixing(false);
-      s.showToast(moved.located ? `${moved.name} moved to ${moved.address ?? "its new spot"}` : `Nothing found for "${query.trim() || r.name}"`);
-    } catch (e) {
-      s.showToast(e instanceof ApiError && e.status === 503 ? "Roaster lookup is not configured on this deployment" : "Could not move the roaster");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   // A place you mean to go, marked on the map you already have open (§4).
   const wish = async () => {
@@ -203,6 +189,7 @@ const RoasterSheet = ({ roaster: r, onClose, onPatched }: { roaster: Roaster; on
   };
 
   if (reading) return <RecipesSheet roaster={r} voice={reading} onBack={() => setReading(null)} onClose={onClose} />;
+  if (fixing) return <RoasterPicker roasterId={r.id} name={r.name} onPlaced={(moved) => { onPatched(moved); setFixing(false); }} onClose={() => setFixing(false)} />;
 
   return (
     <>
@@ -235,21 +222,14 @@ const RoasterSheet = ({ roaster: r, onClose, onPatched }: { roaster: Roaster; on
           </button>
         ))}
 
-        {fixing ? (
-          <div className="relocate">
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`${r.name}, city or street`} autoFocus onKeyDown={(e) => { if (e.key === "Enter" && !busy) void relocate(); }} />
-            <button className="act" disabled={busy} onClick={() => void relocate()}>{busy ? "…" : "FIND →"}</button>
+        <div className="log-open" style={{ background: "transparent", border: 0, padding: 0, marginTop: 14 }}>
+          <div className="acts">
+            <button className={"act" + (wished ? " on" : "")} onClick={() => void wish()}>{wished ? "✦ WANT TO VISIT" : "WANT TO VISIT"}</button>
+            <a className="act" href={mapsUrl(r)} target="_blank" rel="noopener noreferrer">OPEN IN MAPS →</a>
+            {r.website && <a className="act" href={r.website} target="_blank" rel="noopener noreferrer">WEBSITE →</a>}
+            <button className="act quiet" onClick={() => setFixing(true)}>{r.located ? "WRONG PLACE?" : "FIND IT"}</button>
           </div>
-        ) : (
-          <div className="log-open" style={{ background: "transparent", border: 0, padding: 0, marginTop: 14 }}>
-            <div className="acts">
-              <button className={"act" + (wished ? " on" : "")} onClick={() => void wish()}>{wished ? "✦ WANT TO VISIT" : "WANT TO VISIT"}</button>
-              <a className="act" href={mapsUrl(r)} target="_blank" rel="noopener noreferrer">OPEN IN MAPS →</a>
-              {r.website && <a className="act" href={r.website} target="_blank" rel="noopener noreferrer">WEBSITE →</a>}
-              <button className="act quiet" onClick={() => setFixing(true)}>{r.located ? "WRONG PLACE?" : "FIND IT"}</button>
-            </div>
-          </div>
-        )}
+        </div>
         <button className="cta panel" style={{ marginTop: 16 }} onClick={onClose}><span>DONE</span></button>
       </div>
     </>

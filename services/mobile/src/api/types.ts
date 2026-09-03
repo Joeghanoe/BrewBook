@@ -51,6 +51,10 @@ export interface Bean {
   brewCount: number;
   lastBrewedAt: string | null;
   lastParams: BrewParams;
+  /** The linked roaster has a pin on the map. */
+  roasterLocated: boolean;
+  /** Somebody has answered where the roaster is, even "nowhere". False means the picker has not been offered yet. */
+  roasterResolved: boolean;
 }
 
 export interface CreateBean {
@@ -289,6 +293,23 @@ export interface Friends {
   friends: Friend[];
   sent: FriendInvite[];
   received: FriendInvite[];
+}
+
+/** One place a roaster name might mean. `distanceKm` is from the position the client sent, null without one. */
+export interface RoasterCandidate {
+  placeId: string;
+  name: string;
+  address: string | null;
+  lat: number;
+  lng: number;
+  website: string | null;
+  distanceKm: number | null;
+}
+
+/** `available` is false when no lookup is configured or it did not answer; an empty list with it true means nothing matched. */
+export interface RoasterSearch {
+  available: boolean;
+  candidates: RoasterCandidate[];
 }
 
 export interface Config {

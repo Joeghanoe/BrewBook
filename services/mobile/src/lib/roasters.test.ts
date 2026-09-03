@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Brew, Roaster, RoasterVoice } from "../api/types";
 import { METHOD_DEFAULTS } from "./format";
-import { mapsUrl, pinKind, pinRadius, pinVoice, ratingLabel, topLikedFlavours } from "./roasters";
+import { fmtDistance, mapsUrl, pinKind, pinRadius, pinVoice, ratingLabel, topLikedFlavours } from "./roasters";
 
 const brew = (tags: [string, 1 | -1][]): Brew => ({
   id: "b", beanId: "x", number: 1, params: METHOD_DEFAULTS.filter,
@@ -46,6 +46,14 @@ describe("roasters", () => {
     expect(pinVoice(roaster({ voices: [mine, theirs] }))?.name).toBe("me");
     expect(pinVoice(roaster({ voices: [voice("me", true, null), theirs] }))?.name).toBe("sam");
     expect(pinVoice(roaster({ voices: [] }))).toBeNull();
+  });
+
+  it("reads a candidate's distance at the scale a walker or a driver needs", () => {
+    expect(fmtDistance(null)).toBe("");
+    expect(fmtDistance(0.34)).toBe("340 m");
+    expect(fmtDistance(0.004)).toBe("10 m");
+    expect(fmtDistance(1.24)).toBe("1.2 km");
+    expect(fmtDistance(47.6)).toBe("48 km");
   });
 
   it("tells the three kinds of pin apart", () => {

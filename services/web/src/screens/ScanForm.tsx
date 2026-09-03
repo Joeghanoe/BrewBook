@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { api, ApiError } from "../api/client";
-import type { ExtractedField, LabelScan } from "../api/types";
+import type { Bean, ExtractedField, LabelScan } from "../api/types";
 import { Rule } from "../components/Chrome";
+import { RoasterPicker } from "../components/RoasterPicker";
 import { categoryOf, groupOf } from "../lib/flavours";
 import { useStore } from "../state/store";
 import { takeScanResult, type ScanResult } from "./Scan";
@@ -43,6 +44,8 @@ export const ScanForm = () => {
   const [editing, setEditing] = useState<Key | null>(null);
   const [newNote, setNewNote] = useState("");
   const [saving, setSaving] = useState(false);
+  // A bag from a roaster the app has not placed yet: ask where it is before leaving the screen.
+  const [placing, setPlacing] = useState<Bean | null>(null);
   const categories = useMemo(() => new Map(scan.declaredNotes.map((n) => [n.text, n.category])), [scan]);
 
   const provenance = (k: Key): "extracted" | "partial" | "missing" | "edited" => {
@@ -51,6 +54,10 @@ export const ScanForm = () => {
     if (v !== (scan[k].value ?? "")) return "edited";
     return scan[k].provenance;
   };
+
+  // The first bag lands on a ticket that is ready to brew (§7); later ones go back to the shelf.
+  const first = s.beansOpen.length === 0;
+  const leave = () => s.setScreen(first ? "home" : "library");
 
   const save = async () => {
     if (!values.bean.trim()) { s.showToast("The bag needs a name"); setEditing("bean"); return; }
@@ -63,11 +70,10 @@ export const ScanForm = () => {
         weightG: grams(values.weight),
         labelScanId: scan.scanId || null,
       });
-      const first = s.beansOpen.length === 0;
       s.addBean(bean);
-      // The first bag lands on a ticket that is ready to brew (§7); later ones go back to the shelf.
-      s.setScreen(first ? "home" : "library");
       s.showToast(`${bean.name} added to the library`);
+      if (bean.roasterId && !bean.roasterResolved) setPlacing(bean);
+      else leave();
     } catch (e) {
       setSaving(false);
       s.showToast(e instanceof ApiError ? `Not saved — ${e.message}` : "Not saved — the brew log could not be reached");
@@ -127,6 +133,11 @@ export const ScanForm = () => {
       <div style={{ padding: "0 22px 14px" }}>
         <button className="cta" onClick={save} disabled={saving} style={{ opacity: saving ? 0.6 : 1 }}><span>{saving ? "SAVING…" : "SAVE BAG"}</span></button>
       </div>
+      {placing && placing.roasterId && (
+        <RoasterPicker roasterId={placing.roasterId} name={placing.roaster ?? values.roaster}
+          onPlaced={(r) => { s.patchBean({ ...placing, roasterLocated: r.located, roasterResolved: true }); leave(); }}
+          onClose={leave} />
+      )}
     </div>
   );
 };

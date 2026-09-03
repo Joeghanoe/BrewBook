@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Rule } from "../components/Chrome";
 import { RateRow } from "../components/RateRow";
+import { RoasterPicker } from "../components/RoasterPicker";
 import { daysOffRoast, describeDelta, describeFull, fmtTimeOrDash, stars, whenLabel } from "../lib/format";
 import { useStore } from "../state/store";
 
@@ -8,6 +9,7 @@ export const BeanDetail = () => {
   const s = useStore();
   const bean = s.currentBean;
   const [open, setOpen] = useState<string | null>(null);
+  const [finding, setFinding] = useState(false);
   if (!bean) { s.setScreen("library"); return null; }
   const hist = s.brewsFor(bean.id); // newest first
   const days = daysOffRoast(bean.roastDate);
@@ -26,7 +28,9 @@ export const BeanDetail = () => {
         <div className="name">{bean.name}</div>
         <div className="sub">
           {bean.roaster && bean.roasterId
-            ? <button className="roaster-link" onClick={openMap}>{bean.roaster} ↗</button>
+            ? bean.roasterLocated
+              ? <button className="roaster-link" onClick={openMap}>{bean.roaster} ↗</button>
+              : <>{bean.roaster} <button className="roaster-link" onClick={() => setFinding(true)}>FIND IT →</button></>
             : bean.roaster}
           {bean.roaster && originLine ? " — " : ""}
           {originLine}
@@ -82,6 +86,11 @@ export const BeanDetail = () => {
           </button>
         </div>
       </div>
+      {finding && bean.roasterId && (
+        <RoasterPicker roasterId={bean.roasterId} name={bean.roaster ?? ""}
+          onPlaced={(r) => { s.patchBean({ ...bean, roasterLocated: r.located, roasterResolved: true }); setFinding(false); }}
+          onClose={() => setFinding(false)} />
+      )}
     </div>
   );
 };

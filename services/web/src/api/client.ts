@@ -1,4 +1,4 @@
-import type { Bean, Brew, BrewParams, Config, CreateBean, CreatedInvite, FlavourTag, Friend, FriendInvite, Friends, LabelScan, Me, Passport, Profile, Roaster, RoasterScope, SharedBrew, UpdateBean, UpdateBrew, VoiceParse } from "./types";
+import type { Bean, Brew, BrewParams, Config, CreateBean, CreatedInvite, FlavourTag, Friend, FriendInvite, Friends, LabelScan, Me, Passport, Profile, Roaster, RoasterCandidate, RoasterScope, RoasterSearch, SharedBrew, UpdateBean, UpdateBrew, VoiceParse } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -82,5 +82,13 @@ export const api = {
   revokeInvite: (token: string) => request<void>(`/friends/invites/${encodeURIComponent(token)}`, { method: "DELETE" }),
   acceptInvite: (token: string) => request<Friend>(`/friends/invites/${encodeURIComponent(token)}/accept`, { method: "POST" }),
   relocateRoaster: (id: string, query: string | null) => request<Roaster>(`/roasters/${id}/relocate`, json("POST", { query })),
+  searchRoasters: (q: string, at: { lat: number; lng: number } | null) => {
+    const p = new URLSearchParams({ q });
+    if (at) { p.set("lat", String(at.lat)); p.set("lng", String(at.lng)); }
+    return request<RoasterSearch>("/roasters/search?" + p);
+  },
+  /** The user's answer to the search; null is "none of these" and keeps the roaster off the map on purpose. */
+  placeRoaster: (id: string, pick: RoasterCandidate | null) =>
+    request<Roaster>(`/roasters/${id}/place`, json("POST", pick ? { placeId: pick.placeId, name: pick.name, address: pick.address, lat: pick.lat, lng: pick.lng, website: pick.website } : { placeId: null })),
   signOutUrl: "/oauth2/sign_out",
 };
