@@ -118,6 +118,8 @@ local (`VoiceCommandParser`), whatever produced the transcript.
 
 ```text
 services/web        React + Vite + TypeScript SPA (vanilla CSS, design tokens in styles.css)
+services/mobile     Expo (React Native) app for iOS and Android; the same screens, store and copy
+                    as web, tokens in src/theme/tokens.ts, native camera/mic/maps
 services/api        .NET 10 ASP.NET Core minimal API + EF Core + Npgsql
   src/Brewbook.Api
     Program.cs        composition root and pipeline
@@ -140,7 +142,8 @@ is the stock `quay.io/oauth2-proxy/oauth2-proxy` image configured entirely by en
 web client talks to `/api/v1/*` on its own origin; oauth2-proxy routes it to the API.
 
 Wire shapes live in `services/api/src/Brewbook.Api/Contracts/Dtos.cs` and are mirrored by hand in
-`services/web/src/api/types.ts`. Change both in the same commit. Routes are versioned by prefix
+`services/web/src/api/types.ts` and `services/mobile/src/api/types.ts`. Change all three in the same
+commit; `services/mobile/src/lib/*` is likewise a copy of the web's pure rules. Routes are versioned by prefix
 (`/api/v1`); add fields, never repurpose them.
 
 Migrations are append-only under `services/api/src/Brewbook.Api/Data/Migrations`. Add one with
@@ -164,7 +167,7 @@ startup and is the only thing that touches the schema.
   because the app is a stack of screens and sheets, not URLs. The one URL that matters is
   `/?invite=<token>`, which the store reads once and then strips.
 - Match the design tokens exactly: colours, type, spacing and copy in `services/web/src/styles.css`
-  come from the handoff. Sharp corners everywhere except circles and the phone shell. Hit targets
+  (and their mirror in `services/mobile/src/theme/tokens.ts`) come from the handoff. Sharp corners everywhere except circles and the phone shell. Hit targets
   are at least 44px.
 - Redact nothing you do not need to log; log nothing that identifies a user beyond what an error
   needs.
@@ -200,6 +203,9 @@ dotnet test services/api/Brewbook.slnx --no-build -c Release
 
 # Web
 cd services/web && npm run typecheck && npm test && npx vite build
+
+# Mobile (JS side; the native build is `npm run ios` / `npm run android`)
+cd services/mobile && npm run typecheck && npm test && npx expo export --platform ios
 
 # Whole stack locally (fake identity, no Google): http://localhost:3000
 docker compose up --build

@@ -1,0 +1,99 @@
+{
+  "expo": {
+    "name": "Brewbook",
+    "slug": "brewbook",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "brewbook",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#1c1a21",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.brewbook.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Brewbook reads a bag's label to add it to your library.",
+        "NSMicrophoneUsageDescription": "Brewbook listens for ticket changes you say while you brew.",
+        "NSSpeechRecognitionUsageDescription": "Brewbook turns what you say into a change on the brew ticket.",
+        "NSPhotoLibraryUsageDescription": "Brewbook reads a label photo from your library when the camera is not available.",
+        "UIViewControllerBasedStatusBarAppearance": false
+      },
+      "associatedDomains": []
+    },
+    "android": {
+      "package": "app.brewbook.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#1c1a21",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "INTERNET"
+      ],
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "brewbook"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Brewbook reads a bag's label to add it to your library."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Brewbook reads a label photo from your library when the camera is not available."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Brewbook listens for ticket changes you say while you brew."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Brewbook listens for ticket changes you say while you brew.",
+          "speechRecognitionPermission": "Brewbook turns what you say into a change on the brew ticket."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1c1a21",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      [
+        "react-native-maps",
+        {
+          "iosGoogleMapsApiKey": "",
+          "androidGoogleMapsApiKey": ""
+        }
+      ],
+      "expo-asset"
+    ]
+  }
+}

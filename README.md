@@ -3,6 +3,7 @@
 A personal coffee brew log, mobile-first. One brew ticket per bag; adjust, time, rate, tag.
 
 - `services/web` — React + Vite SPA (the design lives in `src/styles.css` and the screens)
+- `services/mobile` — the same app as a native iOS and Android build (Expo / React Native); see its README
 - `services/api` — .NET 10 minimal API, EF Core, Postgres
 - `proxy` — stock [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) with Google sign-in, fronting both
 - `.railway/railway.ts` — the Railway project as code; `.railway/README.md` is the deployment runbook
