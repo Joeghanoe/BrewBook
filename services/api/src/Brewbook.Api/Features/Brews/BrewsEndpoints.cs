@@ -42,11 +42,11 @@ public static class BrewsEndpoints
                 Blooms = p.Blooms, PreInfusionS = p.PreInfusionS, TargetMs = p.TargetMs,
                 // Untimed until a time arrives: the scale's timer, typed in on the rate card.
                 DurationMs = req.DurationMs ?? 0,
-                PourMarkersMs = (req.PourMarkersMs ?? []).Where(m => m >= 0).OrderBy(m => m).ToList(),
                 // Rating publishes; the default decides whether that reaches friends, per brew after this.
                 IsPrivate = !me.Required.ShareRatedByDefault,
                 BrewedAt = clock.GetUtcNow(),
             };
+            brew.SetSteps(StepsFrom(req.Steps, req.PourMarkersMs));
 
             // Per-user sequence: MAX+1 guarded by the unique (user_id, number) index. A concurrent
             // insert from the same user loses the race and retries with a fresh number.
@@ -98,6 +98,7 @@ public static class BrewsEndpoints
             if (req.Rating is { } rating) brew.Rating = rating;
             if (req.Defects is { } defects) brew.Defects = defects.Distinct().ToList();
             if (req.IsPrivate is { } isPrivate) brew.IsPrivate = isPrivate;
+            if (req.Steps is { } steps) brew.SetSteps(StepsFrom(steps, null));
             await db.SaveChangesAsync(ct);
             var unlocked = await achievements.EvaluateAsync(me.Id, brew.Id, ct);
             return Results.Ok(BrewResponse.From(brew, Unlocked(unlocked)));
@@ -165,7 +166,33 @@ public static class BrewsEndpoints
         if (req.Params is null) { e["params"] = ["Params are required."]; return e; }
         ValidateParams(req.Params, e);
         if (req.DurationMs is { } d && !ValidDuration(d)) e["durationMs"] = [DurationMessage];
+        ValidateSteps(req.Steps, e);
         return e;
+    }
+
+    /// <summary>
+    /// Steps come labelled from the timer; the older <c>pourMarkersMs</c> shape is honoured when a
+    /// client sends only that. Negative times are dropped, labels trimmed and capped.
+    /// </summary>
+    private static IEnumerable<BrewStep> StepsFrom(IReadOnlyList<BrewStepDto>? steps, IReadOnlyList<int>? markers)
+    {
+        if (steps is not null)
+            return steps.Where(st => st.AtMs >= 0).Select(st => new BrewStep { AtMs = st.AtMs, Label = NormaliseLabel(st.Label) });
+        return (markers ?? []).Where(m => m >= 0).Select(m => new BrewStep { AtMs = m, Label = "pour" });
+    }
+
+    private static string NormaliseLabel(string? raw)
+    {
+        var t = (raw ?? "").Trim();
+        if (t.Length == 0) return "pour";
+        return t.Length > BrewStep.MaxLabelLength ? t[..BrewStep.MaxLabelLength] : t;
+    }
+
+    private static void ValidateSteps(IReadOnlyList<BrewStepDto>? steps, Dictionary<string, string[]> e)
+    {
+        if (steps is null) return;
+        if (steps.Count > 50) e["steps"] = ["At most 50 steps."];
+        else if (steps.Any(st => st.AtMs > 3_600_000)) e["steps"] = ["Each step must fall within the hour."];
     }
 
     private static Dictionary<string, string[]> ValidateUpdate(UpdateBrewRequest req, DateTimeOffset now)
@@ -178,6 +205,7 @@ public static class BrewsEndpoints
         if (req.Rating is { } r && (r < 0 || r > 5)) e["rating"] = ["Rating must be 0–5."];
         var unknown = (req.Defects ?? []).Where(x => !KnownDefects.Contains(x)).ToList();
         if (unknown.Count > 0) e["defects"] = [$"Unknown defects: {string.Join(", ", unknown)}."];
+        ValidateSteps(req.Steps, e);
         return e;
     }
 

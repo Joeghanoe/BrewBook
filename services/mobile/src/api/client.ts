@@ -1,5 +1,5 @@
 import { DEV_EMAIL, ORIGIN } from "../config";
-import type { Bean, Brew, BrewParams, Config, CreateBean, CreatedInvite, FlavourTag, UpdateBean, Friend, FriendInvite, Friends, LabelScan, Me, Passport, Profile, Roaster, RoasterCandidate, RoasterScope, RoasterSearch, SharedBrew, UpdateBrew, VoiceParse } from "./types";
+import type { Bean, Brew, BrewParams, BrewStep, Config, CreateBean, CreatedInvite, FlavourTag, UpdateBean, Friend, FriendInvite, Friends, LabelScan, Me, Passport, Profile, Roaster, RoasterCandidate, RoasterScope, RoasterSearch, SharedBrew, UpdateBrew, VoiceParse } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -71,8 +71,8 @@ export const api = {
   },
   brews: () => request<Brew[]>("/brews?limit=500"),
   /** `durationMs` null logs the brew untimed; the time can be entered afterwards. */
-  createBrew: (beanId: string, params: BrewParams, durationMs: number | null, pourMarkersMs: number[]) =>
-    request<Brew>("/brews", json("POST", { beanId, params, durationMs, pourMarkersMs })),
+  createBrew: (beanId: string, params: BrewParams, durationMs: number | null, steps: BrewStep[]) =>
+    request<Brew>("/brews", json("POST", { beanId, params, durationMs, steps, pourMarkersMs: steps.map((st) => st.atMs) })),
   updateBrew: (id: string, patch: UpdateBrew) => request<Brew>(`/brews/${id}`, json("PATCH", patch)),
   deleteBrew: (id: string) => request<void>(`/brews/${id}`, { method: "DELETE" }),
   rateBrew: (id: string, rating: number | null, defects: string[] | null) =>

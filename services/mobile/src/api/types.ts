@@ -101,13 +101,18 @@ export interface Unlocked {
   title: string;
 }
 
+/** A named moment in a brew: "first bloom" at 0:00, "pour" at 0:45. */
+export interface BrewStep { atMs: number; label: string }
+
 export interface Brew {
   id: string;
   beanId: string;
   number: number;
   params: BrewParams;
   durationMs: number;
+  /** Step times alone; `steps` carries the same moments with labels. */
   pourMarkersMs: number[];
+  steps: BrewStep[];
   rating: number;
   defects: string[];
   flavourTags: FlavourTag[];
@@ -358,4 +363,5 @@ export interface UpdateBrew {
   rating?: number;
   defects?: string[];
   isPrivate?: boolean;
+  steps?: BrewStep[];
 }

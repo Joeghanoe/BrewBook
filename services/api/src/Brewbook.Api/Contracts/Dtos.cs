@@ -217,13 +217,18 @@ public sealed record FlavourTagDto(string Flavour, int Polarity);
 /// <summary>A passport stamp earned by the write that produced this response.</summary>
 public sealed record UnlockedDto(string Key, string Title);
 
+/// <summary>A named moment in the brew. <c>label</c> is what was said ("first bloom") or "pour".</summary>
+public sealed record BrewStepDto(int AtMs, string Label);
+
 public sealed record BrewResponse(
     Guid Id,
     Guid BeanId,
     int Number,
     BrewParamsDto Params,
     int DurationMs,
+    /// <summary>Step times alone. Older field; <c>steps</c> carries the same moments with labels.</summary>
     IReadOnlyList<int> PourMarkersMs,
+    IReadOnlyList<BrewStepDto> Steps,
     int Rating,
     IReadOnlyList<string> Defects,
     IReadOnlyList<FlavourTagDto> FlavourTags,
@@ -234,15 +239,20 @@ public sealed record BrewResponse(
     IReadOnlyList<UnlockedDto> NewlyUnlocked)
 {
     public static BrewResponse From(Brew b, IReadOnlyList<UnlockedDto>? newlyUnlocked = null) => new(
-        b.Id, b.BeanId, b.Number, BrewParamsDto.From(BrewParams.From(b)), b.DurationMs, b.PourMarkersMs, b.Rating, b.Defects,
+        b.Id, b.BeanId, b.Number, BrewParamsDto.From(BrewParams.From(b)), b.DurationMs, b.PourMarkersMs,
+        b.Steps.OrderBy(st => st.AtMs).Select(st => new BrewStepDto(st.AtMs, st.Label)).ToList(), b.Rating, b.Defects,
         b.FlavourTags.OrderBy(t => t.Flavour).Select(t => new FlavourTagDto(t.Flavour, t.Polarity)).ToList(), b.BrewedAt,
         b.IsPrivate, newlyUnlocked ?? []);
 }
 
 public sealed record SetBrewPrivacyRequest(bool IsPrivate);
 
-/// <summary><c>durationMs</c> null or 0 logs the brew untimed; the time can be entered afterwards.</summary>
-public sealed record CreateBrewRequest(Guid BeanId, BrewParamsDto Params, int? DurationMs, IReadOnlyList<int>? PourMarkersMs);
+/// <summary>
+/// <c>durationMs</c> null or 0 logs the brew untimed; the time can be entered afterwards.
+/// <c>steps</c> are the labelled moments; <c>pourMarkersMs</c> is the older unlabelled form and is
+/// only read when <c>steps</c> is absent.
+/// </summary>
+public sealed record CreateBrewRequest(Guid BeanId, BrewParamsDto Params, int? DurationMs, IReadOnlyList<int>? PourMarkersMs, IReadOnlyList<BrewStepDto>? Steps = null);
 
 /// <summary>A brew after the fact. Every field is optional; null leaves it as it was. Rating 0 unrates.</summary>
 public sealed record UpdateBrewRequest(
@@ -251,7 +261,8 @@ public sealed record UpdateBrewRequest(
     DateTimeOffset? BrewedAt = null,
     int? Rating = null,
     IReadOnlyList<string>? Defects = null,
-    bool? IsPrivate = null);
+    bool? IsPrivate = null,
+    IReadOnlyList<BrewStepDto>? Steps = null);
 
 public sealed record RateBrewRequest(int? Rating, IReadOnlyList<string>? Defects);
 

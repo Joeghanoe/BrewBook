@@ -5,7 +5,7 @@ import { fmtDistance, mapsUrl, pinKind, pinRadius, pinVoice, ratingLabel, topLik
 
 const brew = (tags: [string, 1 | -1][]): Brew => ({
   id: "b", beanId: "x", number: 1, params: METHOD_DEFAULTS.filter,
-  durationMs: 0, pourMarkersMs: [], rating: 0, defects: [], brewedAt: "2026-09-01T08:00:00Z",
+  durationMs: 0, pourMarkersMs: [], steps: [], rating: 0, defects: [], brewedAt: "2026-09-01T08:00:00Z",
   flavourTags: tags.map(([flavour, polarity]) => ({ flavour, polarity })), isPrivate: false, newlyUnlocked: [],
 });
 

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Act, Chips, Empty, Link, Nav, Rule, Screen, Spacer, SqBtn, TagDash, TagSolid, Title } from "../components/Chrome";
 import { RateRow } from "../components/RateRow";
 import { RoasterPicker } from "../components/RoasterPicker";
-import { daysOffRoast, describeDelta, describeFull, fmtTimeOrDash, stars, whenLabel } from "../lib/format";
+import { daysOffRoast, describeDelta, describeFull, describeSteps, fmtTimeOrDash, stars, whenLabel } from "../lib/format";
 import { useStore } from "../state/store";
 import { c, g, tabular } from "../theme/text";
 import { C } from "../theme/tokens";
@@ -62,6 +62,7 @@ export const BeanDetail = () => {
               {isOpen && (
                 <View style={st.logOpen}>
                   <Text style={st.full}>{describeFull(h.params, h.durationMs)}</Text>
+                  {h.steps.length > 0 && <Text style={st.steps}>{describeSteps(h.steps)}</Text>}
                   {(h.flavourTags.length > 0 || h.defects.length > 0) && (
                     <Text style={[st.full, { marginTop: 6, color: C.copperLight85 }]}>
                       {h.flavourTags.map((t) => (t.polarity < 0 ? "− " : "") + t.flavour).concat(h.defects.map((d) => `defect: ${d.toLowerCase()}`)).join(" · ")}
@@ -121,5 +122,6 @@ const st = StyleSheet.create({
   stars: { fontSize: 12, letterSpacing: 1, width: 66, textAlign: "right", color: C.copperLight },
   logOpen: { marginTop: 10, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: C.copper07, borderWidth: 1, borderColor: C.copper30 },
   full: g(500, 13, 0, C.text85),
+  steps: { ...c(700, 11, 1, C.copperLight), marginTop: 4 },
   acts: { flexDirection: "row", gap: 8, marginTop: 11, flexWrap: "wrap" },
 });

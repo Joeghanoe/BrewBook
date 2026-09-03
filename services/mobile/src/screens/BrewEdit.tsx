@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import type { BrewMethod, BrewParams } from "../api/types";
+import type { BrewMethod, BrewParams, BrewStep } from "../api/types";
 import { Act, Cta, Nav, Rule, Screen, SqBtn, Title } from "../components/Chrome";
 import { Field } from "../components/Ledger";
 import { RateRow } from "../components/RateRow";
-import { fmtLocalDateTime, fmtTime, METHOD_DEFAULTS, METHOD_LABEL, METHODS, paramsFor, parseClock, parseLocalDateTime, round1, val } from "../lib/format";
+import { fmtLocalDateTime, fmtTime, METHOD_DEFAULTS, METHOD_LABEL, METHODS, paramsFor, parseClock, parseLocalDateTime, round1, stepName, val } from "../lib/format";
 import { useStore } from "../state/store";
 import { c, g, tabular } from "../theme/text";
 import { C } from "../theme/tokens";
@@ -23,6 +23,7 @@ export const BrewEdit = () => {
   const [params, setParams] = useState<BrewParams>(() => brew?.params ?? METHOD_DEFAULTS.filter);
   const [time, setTime] = useState(() => (brew?.durationMs ? fmtTime(brew.durationMs) : ""));
   const [at, setAt] = useState(() => (brew ? fmtLocalDateTime(brew.brewedAt) : ""));
+  const [steps, setSteps] = useState<BrewStep[]>(() => brew?.steps ?? []);
   const [editing, setEditing] = useState<"time" | "at" | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -42,7 +43,7 @@ export const BrewEdit = () => {
     if (timeBad) { s.showToast("Time reads m:ss, like 2:41"); return; }
     if (!atIso) { s.showToast("Brewed-at reads yyyy-mm-dd hh:mm"); return; }
     setSaving(true);
-    const ok = await s.updateBrew(brew.id, { params, durationMs: typed ?? 0, brewedAt: atIso });
+    const ok = await s.updateBrew(brew.id, { params, durationMs: typed ?? 0, brewedAt: atIso, steps });
     setSaving(false);
     if (ok) { back(); s.showToast(`N° ${n} updated`); }
   };
@@ -90,6 +91,18 @@ export const BrewEdit = () => {
             onEdit={() => setEditing("time")} onDone={() => setEditing(null)} onChange={setTime} required={timeBad} provenance={timeBad ? "missing" : undefined} />
           <Field label="BREWED AT" value={at} editing={editing === "at"} placeholder="yyyy-mm-dd hh:mm" keyboard="numbers-and-punctuation"
             onEdit={() => setEditing("at")} onDone={() => setEditing(null)} onChange={setAt} />
+          {steps.length > 0 && (
+            <>
+              <Rule label="STEPS" right={`${steps.length}`} style={{ marginTop: 18 }} />
+              {steps.map((step, i) => (
+                <View key={`${step.atMs}-${i}`} style={st.stepRow}>
+                  <Text style={st.stepName}>{stepName(steps, i)}</Text>
+                  <Text style={st.stepAt}>{fmtTime(step.atMs)}</Text>
+                  <SqBtn onPress={() => setSteps(steps.filter((_, j) => j !== i))} label={`Remove ${stepName(steps, i)} at ${fmtTime(step.atMs)}`}>✕</SqBtn>
+                </View>
+              ))}
+            </>
+          )}
           <Rule label="RATING" style={{ marginTop: 18 }} />
           <RateRow brew={brew}>
             <Pressable onPress={() => s.openWheel(brew)} style={st.tagcta}><Text style={st.tagctaText}>TAG FLAVOURS →</Text></Pressable>
@@ -131,6 +144,9 @@ const st = StyleSheet.create({
   stepperText: { fontSize: 22, color: C.copperLight },
   adjVal: { ...g(600, 24), ...tabular },
   adjDelta: { ...c(700, 10, 1, C.copperLight), height: 14, lineHeight: 14 },
+  stepRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 44, borderBottomWidth: 1, borderBottomColor: "rgba(194, 144, 94, 0.18)" },
+  stepName: { ...c(700, 11, 2, C.copperLight), flex: 1 },
+  stepAt: { ...g(600, 15), ...tabular, color: C.text85 },
   tagcta: { height: 34, justifyContent: "center", paddingHorizontal: 13 },
   tagctaText: g(600, 12, 1, C.copperLight),
   acts: { flexDirection: "row", gap: 8, marginTop: 11, flexWrap: "wrap" },

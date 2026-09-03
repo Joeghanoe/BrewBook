@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../api/client";
-import type { Bean, Brew, BrewMethod, BrewParams, FlavourTag, Friends, Me, RoasterScope, Unlocked, UpdateBrew } from "../api/types";
+import type { Bean, Brew, BrewMethod, BrewParams, BrewStep, FlavourTag, Friends, Me, RoasterScope, Unlocked, UpdateBrew } from "../api/types";
 import { changedKeys, METHOD_DEFAULTS, fmtTime, sameParams } from "../lib/format";
 
 export type Screen = "splash" | "home" | "timer" | "bean" | "library" | "scan" | "scanform" | "profile" | "roasters" | "passport" | "friends" | "beanedit" | "brewedit";
@@ -46,7 +46,7 @@ interface Store {
   ticketSource: TicketSource | null;
 
   /** `durationMs` null logs the brew untimed: the recipe is written, the time comes later. */
-  commitBrew: (durationMs: number | null, pourMarkersMs: number[]) => Promise<void>;
+  commitBrew: (durationMs: number | null, steps: BrewStep[]) => Promise<void>;
   /** The measured time for a brew logged without the timer. */
   setBrewDuration: (brewId: string, durationMs: number) => Promise<void>;
   rateBrew: (brewId: string, rating: number | null, defects: string[] | null) => Promise<void>;
@@ -194,13 +194,13 @@ export function StoreProvider({ children, showSplash = true }: { children: React
 
   const patchBean = (bean: Bean) => setBeans((bs) => bs.map((b) => (b.id === bean.id ? bean : b)));
 
-  const commitBrew = async (durationMs: number | null, pourMarkersMs: number[]) => {
+  const commitBrew = async (durationMs: number | null, steps: BrewStep[]) => {
     if (!currentBean) return;
     const bean = currentBean;
     const p = params;
     const prevBase = base;
     try {
-      const brew = await api.createBrew(bean.id, p, durationMs, pourMarkersMs);
+      const brew = await api.createBrew(bean.id, p, durationMs, steps);
       setBrews((bs) => [brew, ...bs]);
       patchBean({ ...bean, brewCount: bean.brewCount + 1, lastBrewedAt: brew.brewedAt, lastParams: p });
       setBase(p);

@@ -24,7 +24,17 @@ public sealed class Brew
     public int TargetMs { get; set; }
     /// <summary>Measured brew time; 0 means the brew was logged without one and is still untimed.</summary>
     public int DurationMs { get; set; }
+    /// <summary>Step times only, kept in sync with <see cref="Steps"/> for readers that predate labels.</summary>
     public List<int> PourMarkersMs { get; set; } = [];
+    /// <summary>Labelled moments in the brew, ordered by time.</summary>
+    public List<BrewStep> Steps { get; set; } = [];
+
+    /// <summary>Steps own the truth; the marker list is derived from them on every write.</summary>
+    public void SetSteps(IEnumerable<BrewStep> steps)
+    {
+        Steps = steps.OrderBy(x => x.AtMs).ToList();
+        PourMarkersMs = Steps.Select(x => x.AtMs).ToList();
+    }
 
     /// <summary>0 means unrated.</summary>
     public int Rating { get; set; }

@@ -74,6 +74,12 @@ public sealed class BrewbookDbContext(DbContextOptions<BrewbookDbContext> option
             e.Property(x => x.DoseG).HasPrecision(6, 2);
             e.Property(x => x.YieldG).HasPrecision(7, 2);
             e.Property(x => x.TempC).HasPrecision(5, 2);
+            // A small ordered list read whole and never queried by field: JSON is the honest shape here.
+            e.OwnsMany(x => x.Steps, st =>
+            {
+                st.ToJson();
+                st.Property(x => x.Label).HasMaxLength(BrewStep.MaxLabelLength);
+            });
             e.HasOne(x => x.User).WithMany(u => u.Brews).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Bean).WithMany(bn => bn.Brews).HasForeignKey(x => x.BeanId).OnDelete(DeleteBehavior.Cascade);
         });

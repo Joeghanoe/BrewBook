@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Rule } from "../components/Chrome";
 import { RateRow } from "../components/RateRow";
 import { RoasterPicker } from "../components/RoasterPicker";
-import { daysOffRoast, describeDelta, describeFull, fmtTimeOrDash, stars, whenLabel } from "../lib/format";
+import { daysOffRoast, describeDelta, describeFull, describeSteps, fmtTimeOrDash, stars, whenLabel } from "../lib/format";
 import { useStore } from "../state/store";
 
 export const BeanDetail = () => {
@@ -58,6 +58,7 @@ export const BeanDetail = () => {
               {isOpen && (
                 <div className="log-open">
                   <div className="full">{describeFull(h.params, h.durationMs)}</div>
+                  {h.steps.length > 0 && <div className="full steps">{describeSteps(h.steps)}</div>}
                   {(h.flavourTags.length > 0 || h.defects.length > 0) && (
                     <div className="full" style={{ marginTop: 6, color: "rgba(216,168,111,.85)" }}>
                       {h.flavourTags.map((t) => (t.polarity < 0 ? "− " : "") + t.flavour).concat(h.defects.map((d) => `defect: ${d.toLowerCase()}`)).join(" · ")}

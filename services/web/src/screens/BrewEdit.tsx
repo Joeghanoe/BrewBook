@@ -1,8 +1,8 @@
 import { useState } from "react";
-import type { BrewParams, BrewMethod } from "../api/types";
+import type { BrewParams, BrewMethod, BrewStep } from "../api/types";
 import { Rule } from "../components/Chrome";
 import { RateRow } from "../components/RateRow";
-import { fmtLocalDateTime, fmtTime, METHOD_DEFAULTS, METHOD_LABEL, METHODS, paramsFor, parseClock, parseLocalDateTime, round1, val } from "../lib/format";
+import { fmtLocalDateTime, fmtTime, METHOD_DEFAULTS, METHOD_LABEL, METHODS, paramsFor, parseClock, parseLocalDateTime, round1, stepName, val } from "../lib/format";
 import { useStore } from "../state/store";
 
 /** Switching method keeps what carries across (grind, dose, water) and takes the rest from the method's defaults. */
@@ -19,6 +19,7 @@ export const BrewEdit = () => {
   const [params, setParams] = useState<BrewParams>(() => brew?.params ?? METHOD_DEFAULTS.filter);
   const [time, setTime] = useState(() => (brew?.durationMs ? fmtTime(brew.durationMs) : ""));
   const [at, setAt] = useState(() => (brew ? fmtLocalDateTime(brew.brewedAt, "T") : ""));
+  const [steps, setSteps] = useState<BrewStep[]>(() => brew?.steps ?? []);
   const [confirm, setConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   if (!brew) { s.setScreen("bean"); return null; }
@@ -36,7 +37,7 @@ export const BrewEdit = () => {
     if (timeBad) { s.showToast("Time reads m:ss, like 2:41"); return; }
     if (!atIso) { s.showToast("Brewed-at needs a date and a time"); return; }
     setSaving(true);
-    const ok = await s.updateBrew(brew.id, { params, durationMs: typed ?? 0, brewedAt: atIso });
+    const ok = await s.updateBrew(brew.id, { params, durationMs: typed ?? 0, brewedAt: atIso, steps });
     setSaving(false);
     if (ok) { back(); s.showToast(`N° ${n} updated`); }
   };
@@ -80,6 +81,20 @@ export const BrewEdit = () => {
           <span className="k">BREWED AT</span>
           <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} aria-label="Brewed at" />
         </div>
+        {steps.length > 0 && (
+          <>
+            <div style={{ marginTop: 18 }}><Rule label="STEPS" right={`${steps.length}`} /></div>
+            <div className="steps-edit">
+              {steps.map((st, i) => (
+                <div key={`${st.atMs}-${i}`} className="step-row">
+                  <span className="step-name">{stepName(steps, i)}</span>
+                  <span className="step-at">{fmtTime(st.atMs)}</span>
+                  <button className="sqbtn" onClick={() => setSteps(steps.filter((_, j) => j !== i))} aria-label={`Remove ${stepName(steps, i)} at ${fmtTime(st.atMs)}`}>✕</button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
         <div style={{ marginTop: 18 }}><Rule label="RATING" /></div>
         <RateRow brew={brew}>
           <button className="tagcta" onClick={() => s.openWheel(brew)}>TAG FLAVOURS →</button>

@@ -1,9 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { changedKeys, daysOffRoast, describeDelta, describeFull, describePreference, durationDelta, fmtLocalDateTime, fmtTime, fmtTimeOrDash, METHOD_DEFAULTS, paramsFor, parseClock, parseLocalDateTime, sameAsLabel, sameParams, whenLabel } from "./format";
+import { changedKeys, daysOffRoast, describeDelta, describeFull, describePreference, describeSteps, durationDelta, fmtLocalDateTime, fmtTime, fmtTimeOrDash, METHOD_DEFAULTS, paramsFor, parseClock, parseLocalDateTime, sameAsLabel, sameParams, stepName, whenLabel } from "./format";
 
 const now = new Date(2026, 8, 1, 9, 41); // 1 Sep 2026, Tuesday
 
 describe("format", () => {
+  it("names steps, counting plain pours", () => {
+    const steps = [{ atMs: 0, label: "first bloom" }, { atMs: 45_000, label: "pour" }, { atMs: 90_000, label: "pour" }];
+    expect(stepName(steps, 0)).toBe("FIRST BLOOM");
+    expect(stepName(steps, 1)).toBe("POUR 1");
+    expect(stepName(steps, 2)).toBe("POUR 2");
+    expect(describeSteps(steps)).toBe("first bloom 0:00 · pour 0:45 · pour 1:30");
+    expect(describeSteps([])).toBe("");
+  });
+
   it("formats elapsed time as m:ss", () => {
     expect(fmtTime(0)).toBe("0:00");
     expect(fmtTime(154_000)).toBe("2:34");

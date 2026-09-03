@@ -310,6 +310,40 @@ public class ApiTests
         Assert.Equal(HttpStatusCode.NotFound, other.StatusCode);
     }
 
+    [Fact]
+    public async Task Steps_round_trip_and_fill_pour_markers()
+    {
+        using var f = new ApiFactory();
+        var ada = f.ClientFor("ada@example.com");
+        var bean = await CreateBean(ada, "Kiiro");
+
+        // Labelled steps arrive out of order and with a label that needs trimming; they come back sorted and clean.
+        var res = await ada.PostAsJsonAsync("/api/v1/brews", new CreateBrewRequest(bean.Id, Defaults, 150_000, null,
+            [new(45_000, "second pour"), new(0, "  first bloom "), new(-5, "lost"), new(90_000, "")]), Json);
+        res.EnsureSuccessStatusCode();
+        var brew = (await res.Content.ReadFromJsonAsync<BrewResponse>(Json))!;
+        Assert.Equal([new(0, "first bloom"), new(45_000, "second pour"), new(90_000, "pour")], brew.Steps);
+        Assert.Equal([0, 45_000, 90_000], brew.PourMarkersMs);
+
+        // A read comes back from the JSON column with the same shape.
+        var listed = (await ada.GetFromJsonAsync<List<BrewResponse>>("/api/v1/brews", Json))!.Single(b => b.Id == brew.Id);
+        Assert.Equal(brew.Steps, listed.Steps);
+
+        // Removing a step through the edit endpoint keeps the marker list in step.
+        var patched = await ada.PatchAsJsonAsync($"/api/v1/brews/{brew.Id}", new UpdateBrewRequest(Steps: [new(0, "first bloom"), new(90_000, "pour")]), Json);
+        patched.EnsureSuccessStatusCode();
+        var edited = (await patched.Content.ReadFromJsonAsync<BrewResponse>(Json))!;
+        Assert.Equal([0, 90_000], edited.PourMarkersMs);
+        Assert.Equal(2, edited.Steps.Count);
+
+        // A client that only knows pourMarkersMs still gets steps, labelled as pours.
+        var legacy = await CreateBrew(ada, bean.Id);
+        Assert.Equal([new(30_000, "pour")], legacy.Steps);
+
+        var tooLate = await ada.PostAsJsonAsync("/api/v1/brews", new CreateBrewRequest(bean.Id, Defaults, 150_000, null, [new(4_000_000, "pour")]), Json);
+        Assert.Equal(HttpStatusCode.BadRequest, tooLate.StatusCode);
+    }
+
     private static async Task<BeanResponse> CreateBean(HttpClient c, string name)
     {
         var res = await c.PostAsJsonAsync("/api/v1/beans", new CreateBeanRequest(name, "Symple", "Huila, Colombia", "Washed", null, null, null, null, null, ["Blackberry"], null, null));

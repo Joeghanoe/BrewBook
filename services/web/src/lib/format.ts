@@ -1,4 +1,4 @@
-import type { BrewMethod, BrewParams } from "../api/types";
+import type { BrewMethod, BrewParams, BrewStep } from "../api/types";
 
 export const fmtTime = (ms: number) => {
   const t = Math.max(0, ms);
@@ -104,6 +104,18 @@ export const durationDelta = (durationMs: number, targetMs: number): string => {
   if (d === 0) return "on target";
   return `${d < 0 ? "−" : "+"}${Math.abs(d)} s`;
 };
+
+/** "POUR 2" · "FIRST BLOOM" — a step's name in the timer's marker row; plain pours are counted. */
+export const stepName = (steps: BrewStep[], i: number): string => {
+  const label = steps[i].label.trim().toLowerCase();
+  if (label !== "pour") return label.toUpperCase();
+  const n = steps.slice(0, i + 1).filter((st) => st.label.trim().toLowerCase() === "pour").length;
+  return `POUR ${n}`;
+};
+
+/** "bloom 0:00 · pour 0:45 · pour 1:30" — the steps of a brew in the dial-in log. */
+export const describeSteps = (steps: BrewStep[]): string =>
+  steps.map((st) => `${st.label.trim().toLowerCase()} ${fmtTime(st.atMs)}`).join(" · ");
 
 export const describeFull = (p: BrewParams, durationMs: number) => {
   const time = durationMs > 0 ? fmtTime(durationMs) : "untimed";
