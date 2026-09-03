@@ -18,30 +18,35 @@ public sealed class GooglePlacesLocator(HttpClient http, IOptions<GoogleMapsOpti
 
     public bool Configured => true;
 
+    /// <summary>How far out the one-shot lookup widens its fence, ring by ring, before searching the world.</summary>
+    public static readonly int[] FenceRingsKm = [100, 250, 500, 1000];
+
     public async Task<LocateResult> LocateAsync(string query, double? lat, double? lng, CancellationToken ct)
     {
-        // With a position, look near the drinker first and only then anywhere: a bias alone still
-        // lets a famous namesake abroad outrank the roaster round the corner.
-        if (Fence(lat, lng) is { } fence)
+        // With a position, look near the drinker first and widen ring by ring before anywhere: a bias
+        // alone still lets a famous namesake abroad outrank the roaster round the corner.
+        if (lat is { } la && lng is { } ln)
         {
-            var near = await SearchTextAsync(new { textQuery = BuildQuery(query), pageSize = 1, regionCode = Region(_opt.RegionCode), locationRestriction = fence }, ct);
-            if (near is null) return LocateResult.Unavailable;
-            var found = Map(near);
-            if (found.Status == LocateStatus.Located) return found;
+            foreach (var km in FenceRingsKm)
+            {
+                var near = await SearchTextAsync(new { textQuery = BuildQuery(query), pageSize = 1, regionCode = Region(_opt.RegionCode), locationRestriction = Fence(la, ln, km) }, ct);
+                if (near is null) return LocateResult.Unavailable;
+                var found = Map(near);
+                if (found.Status == LocateStatus.Located) return found;
+            }
         }
         var parsed = await SearchTextAsync(new { textQuery = BuildQuery(query), pageSize = 1, regionCode = Region(_opt.RegionCode), locationBias = Bias(lat, lng) }, ct);
         return parsed is null ? LocateResult.Unavailable : Map(parsed);
     }
 
-    /// <summary>The rectangle Places accepts as a hard restriction: about the bias radius on each side of the position.</summary>
-    public static object? Fence(double? lat, double? lng)
+    /// <summary>The rectangle Places accepts as a hard restriction: the given distance on each side of the position.</summary>
+    public static object Fence(double lat, double lng, int km)
     {
-        if (lat is not { } la || lng is not { } ln) return null;
-        var dLat = BiasRadiusM / 111_320d;
-        var dLng = dLat / Math.Max(0.2, Math.Cos(la * Math.PI / 180));
+        var dLat = km * 1000d / 111_320d;
+        var dLng = dLat / Math.Max(0.2, Math.Cos(lat * Math.PI / 180));
         return new { rectangle = new {
-            low = new { latitude = Math.Max(-90, la - dLat), longitude = Math.Max(-180, ln - dLng) },
-            high = new { latitude = Math.Min(90, la + dLat), longitude = Math.Min(180, ln + dLng) } } };
+            low = new { latitude = Math.Max(-90, lat - dLat), longitude = Math.Max(-180, lng - dLng) },
+            high = new { latitude = Math.Min(90, lat + dLat), longitude = Math.Min(180, lng + dLng) } } };
     }
 
     public async Task<SearchResult> SearchAsync(string query, double? lat, double? lng, int pageSize, CancellationToken ct)

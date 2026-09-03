@@ -45,16 +45,17 @@ public class GooglePlacesLocatorTests
         => Assert.Equal(expected, GooglePlacesLocator.Region(raw));
 
     [Fact]
-    public void Fence_is_about_fifty_kilometres_around_the_position_and_nothing_without_one()
+    public void Fence_rings_widen_from_a_hundred_kilometres_to_a_thousand()
     {
-        Assert.Null(GooglePlacesLocator.Fence(null, 4.9));
-        var fence = GooglePlacesLocator.Fence(52.37, 4.9)!;
-        var json = System.Text.Json.JsonSerializer.Serialize(fence);
+        Assert.Equal([100, 250, 500, 1000], GooglePlacesLocator.FenceRingsKm);
+        var json = System.Text.Json.JsonSerializer.Serialize(GooglePlacesLocator.Fence(52.37, 4.9, 100));
         using var doc = System.Text.Json.JsonDocument.Parse(json);
         var low = doc.RootElement.GetProperty("rectangle").GetProperty("low");
         var high = doc.RootElement.GetProperty("rectangle").GetProperty("high");
-        Assert.InRange(high.GetProperty("latitude").GetDouble() - low.GetProperty("latitude").GetDouble(), 0.85, 0.95);
-        Assert.InRange(high.GetProperty("longitude").GetDouble() - low.GetProperty("longitude").GetDouble(), 1.4, 1.55);
+        Assert.InRange(high.GetProperty("latitude").GetDouble() - low.GetProperty("latitude").GetDouble(), 1.75, 1.85);
+        Assert.InRange(high.GetProperty("longitude").GetDouble() - low.GetProperty("longitude").GetDouble(), 2.85, 3.05);
+        var wide = System.Text.Json.JsonSerializer.Serialize(GooglePlacesLocator.Fence(89.9, 4.9, 1000));
+        Assert.Contains("\"latitude\":90", wide);   // clamped at the pole rather than sent out of range
     }
 
     [Fact]
