@@ -15,6 +15,9 @@ public static class RoastersEndpoints
     /// <summary>Locations fill in lazily on the list call. A personal log has a handful of roasters; this bounds one request's outbound calls.</summary>
     private const int MaxResolvesPerRequest = 8;
 
+    /// <summary>Enough to tell two roasters of the same name apart; few enough to read on a phone.</summary>
+    private const int MaxCandidates = 5;
+
     /// <summary>Whose roasters the map is showing. One control, always visible, defaulting to the user's own (§4).</summary>
     public enum Scope { Mine, Friends, Both }
 
@@ -114,6 +117,65 @@ public static class RoastersEndpoints
             return Results.Ok(ordered);
         });
 
+        // Which place is this name? A few candidates for the user to pick from, nearest first when
+        // their position came with the request. The lookup's own best guess sent five Dutch
+        // roasters to South America; the person adding the bag knows where they bought it.
+        g.MapGet("/search", async (string? q, double? lat, double? lng, IRoasterLocator locator, CancellationToken ct) =>
+        {
+            var query = q?.Trim() ?? "";
+            if (query.Length == 0) return Results.ValidationProblem(new Dictionary<string, string[]> { ["q"] = ["A roaster name is required."] });
+            if (query.Length > 200) query = query[..200];
+            if ((lat is null) != (lng is null) || lat is < -90 or > 90 || lng is < -180 or > 180)
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["lat"] = ["Position needs both a latitude and a longitude in range."] });
+            if (!locator.Configured) return Results.Ok(new RoasterSearchResponse(false, []));
+
+            var found = await locator.SearchAsync(query, lat, lng, MaxCandidates, ct);
+            if (found.Status == LocateStatus.Unavailable) return Results.Ok(new RoasterSearchResponse(false, []));
+            return Results.Ok(new RoasterSearchResponse(true, found.Candidates.Take(MaxCandidates).Select(RoasterCandidateDto.From).ToList()));
+        });
+
+        // The user's answer to the search. Their word beats the lookup's: the row is marked resolved
+        // either way, so the lazy lookup on the list never overwrites a deliberate choice, including
+        // "none of these", which leaves the roaster off the map on purpose.
+        g.MapPost("/{id:guid}/place", async (Guid id, PlaceRoasterRequest req, CurrentUser me, BrewbookDbContext db, TimeProvider clock, CancellationToken ct) =>
+        {
+            var bags = await db.Beans.Include(b => b.LinkedRoaster).Where(b => b.UserId == me.Id && b.RoasterId == id).ToListAsync(ct);
+            var roaster = bags.FirstOrDefault()?.LinkedRoaster
+                ?? (await db.RoasterWishes.Include(w => w.Roaster).SingleOrDefaultAsync(w => w.UserId == me.Id && w.RoasterId == id, ct))?.Roaster;
+            if (roaster is null) return Results.NotFound();
+
+            var placeId = string.IsNullOrWhiteSpace(req.PlaceId) ? null : req.PlaceId.Trim();
+            if (placeId is not null)
+            {
+                if (req.Lat is null || req.Lng is null || req.Lat is < -90 or > 90 || req.Lng is < -180 or > 180)
+                    return Results.ValidationProblem(new Dictionary<string, string[]> { ["lat"] = ["A place needs a latitude and a longitude in range."] });
+                if (placeId.Length > 300) return Results.ValidationProblem(new Dictionary<string, string[]> { ["placeId"] = ["Place id is too long."] });
+                roaster.GooglePlaceId = placeId;
+                roaster.FormattedAddress = Truncate(req.Address, 500);
+                roaster.Lat = req.Lat;
+                roaster.Lng = req.Lng;
+                roaster.Website = Truncate(req.Website, 500);
+            }
+            else
+            {
+                roaster.GooglePlaceId = null;
+                roaster.FormattedAddress = null;
+                roaster.Lat = null;
+                roaster.Lng = null;
+                roaster.Website = null;
+            }
+            roaster.ResolvedAt = clock.GetUtcNow();
+            await db.SaveChangesAsync(ct);
+
+            var beanIds = bags.Select(b => b.Id).ToList();
+            var brews = await db.Brews.Include(b => b.FlavourTags).Where(b => beanIds.Contains(b.BeanId)).ToListAsync(ct);
+            var wished = await db.RoasterWishes.AnyAsync(w => w.UserId == me.Id && w.RoasterId == id, ct);
+            var people = bags.Count == 0
+                ? Array.Empty<RoasterStats.Person>()
+                : [new RoasterStats.Person(me.Id, PersonName.Of(me.Required), true, bags, brews)];
+            return Results.Ok(RoasterStats.Build(new RoasterStats.Input(roaster, people, wished), []));
+        });
+
         // A friend's rated brews from one roaster: the numbers behind the opinion (§5).
         g.MapGet("/{id:guid}/recipes", async (Guid id, Guid userId, CurrentUser me, BrewbookDbContext db, IOptions<FeatureOptions> features, CancellationToken ct) =>
         {
@@ -183,6 +245,13 @@ public static class RoastersEndpoints
         });
 
         return api;
+    }
+
+    private static string? Truncate(string? s, int max)
+    {
+        var t = s?.Trim();
+        if (string.IsNullOrEmpty(t)) return null;
+        return t.Length > max ? t[..max] : t;
     }
 
     private static Scope ParseScope(string? s) => s?.ToLowerInvariant() switch

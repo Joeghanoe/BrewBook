@@ -117,8 +117,24 @@ The browser key is fetched from `/api/v1/config` at runtime; nothing is baked in
    asks once per roaster and stores the answer, so a personal log makes a handful of calls in
    total. Maps JavaScript API loads are billed per map load, within the monthly free credit for
    personal use.
-5. Open the map. A roaster the search could not place is listed under "Not on the map"; open it
-   and use **FIND IT** (or **WRONG PLACE?** on a mislocated one) to name the place yourself.
+5. Add a bag. A roaster the app has not placed yet brings up a picker of up to five candidates
+   (`GET /api/v1/roasters/search`), nearest to you first when the device shares its position and
+   nearest to home otherwise. Picking one, or **NONE OF THESE**, is recorded on the roaster
+   (`POST /api/v1/roasters/{id}/place`) and the lazy lookup never overrides it. A bag whose roaster
+   is still unplaced shows **FIND IT →** on its plaque; the map's **WRONG PLACE?** opens the same
+   picker.
+
+To make every roaster ask again — after a bad batch of automatic matches, say — clear the stored
+answers in Postgres. Marking them resolved keeps the old one-shot lookup from re-guessing, so every
+bag shows **FIND IT →** until you answer:
+
+```sql
+UPDATE roasters
+   SET "GooglePlaceId" = NULL, "FormattedAddress" = NULL, "Lat" = NULL, "Lng" = NULL, "Website" = NULL,
+       "ResolvedAt" = now();
+```
+
+Set `"ResolvedAt" = NULL` instead if you want the automatic lookup to have another go first.
 
 | Variable (on `api`) | Effect |
 |---|---|

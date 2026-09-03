@@ -38,6 +38,14 @@ export const pinVoice = (r: Roaster): RoasterVoice | null => {
   return mine ?? r.voices[0];
 };
 
+/** "340 m" · "1.2 km" · "48 km" — how far a candidate is from where the user stands. Empty without a position. */
+export const fmtDistance = (km: number | null): string => {
+  if (km === null || !Number.isFinite(km)) return "";
+  if (km < 1) return `${Math.max(10, Math.round(km * 100) * 10)} m`;
+  if (km < 10) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
+};
+
 /** A pin the user has not drunk and only means to visit reads differently from one they have. */
 export const pinKind = (r: Roaster): "mine" | "friend" | "wish" => {
   if (r.mine) return "mine";

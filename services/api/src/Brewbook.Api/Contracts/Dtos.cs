@@ -1,4 +1,5 @@
 using Brewbook.Api.Domain;
+using Brewbook.Api.Integrations.GooglePlaces;
 
 namespace Brewbook.Api.Contracts;
 
@@ -51,16 +52,23 @@ public sealed record BeanResponse(
     int BrewCount,
     DateTimeOffset? LastBrewedAt,
     /// <summary>Params of the most recent brew, or the method defaults when the bean has none.</summary>
-    BrewParamsDto LastParams)
+    BrewParamsDto LastParams,
+    /// <summary>The linked roaster has a pin on the map.</summary>
+    bool RoasterLocated,
+    /// <summary>Somebody — the lookup or the user — has answered where the roaster is, even if the answer was "nowhere". False means the picker has not been offered yet.</summary>
+    bool RoasterResolved)
 {
     public static BeanResponse From(Bean b, int brewCount, Brew? last, decimal dosedG, DateTimeOffset now)
     {
         var next = last is null ? BrewParams.MethodDefaults : BrewParams.From(last);
         var left = BagCountdown.BrewsLeft(b.WeightG, dosedG, next.DoseG);
+        // The roaster flags need the navigation loaded; a bean read without it reports "not yet", which is the safe answer.
+        var roaster = b.LinkedRoaster;
         return new(
             b.Id, b.Name, b.Roaster, b.RoasterId, b.Origin, b.Process, b.RoastDate, b.Producer, b.Varietal, b.Altitude, b.RoastLevel,
             b.DeclaredNotes, b.WeightG, left, BagCountdown.AskToArchive(b, left, now), b.Archived, b.LabelScanId is not null,
-            b.CreatedAt, brewCount, last?.BrewedAt, BrewParamsDto.From(next));
+            b.CreatedAt, brewCount, last?.BrewedAt, BrewParamsDto.From(next),
+            roaster?.Located ?? false, roaster?.ResolvedAt is not null);
     }
 }
 
@@ -180,6 +188,22 @@ public sealed record CreateFriendInviteRequest(string? Email);
 public sealed record CreatedInviteResponse(FriendInviteDto Invite, bool Posted);
 
 public sealed record RelocateRoasterRequest(string? Query);
+
+/// <summary>One place a roaster name might mean. <c>DistanceKm</c> is from the position the client sent, null without one.</summary>
+public sealed record RoasterCandidateDto(string PlaceId, string Name, string? Address, double Lat, double Lng, string? Website, double? DistanceKm)
+{
+    public static RoasterCandidateDto From(RoasterCandidate c) => new(c.PlaceId, c.DisplayName, c.FormattedAddress, c.Lat, c.Lng, c.Website, c.DistanceKm is { } km ? Math.Round(km, 1) : null);
+}
+
+/// <summary><c>Available</c> is false when no lookup is configured or it did not answer; an empty list with it true means nothing matched.</summary>
+public sealed record RoasterSearchResponse(bool Available, IReadOnlyList<RoasterCandidateDto> Candidates);
+
+/// <summary>
+/// The user's answer to "which of these is it?". A null <c>PlaceId</c> is "none of these": the
+/// roaster stays off the map and the lookup stops asking. The place fields are the candidate's own,
+/// copied back rather than fetched again: one Places call per search, not two.
+/// </summary>
+public sealed record PlaceRoasterRequest(string? PlaceId, string? Name, string? Address, double? Lat, double? Lng, string? Website);
 
 public sealed record ConfigResponse(string? MapsBrowserKey);
 

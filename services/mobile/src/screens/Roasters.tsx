@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
 import { api, ApiError } from "../api/client";
 import type { Roaster, RoasterScope, RoasterVoice, SharedBrew } from "../api/types";
 import { Act, Backdrop, Chips, Cta, Empty, Hint, Leaf, Link, Nav, Rule, Screen, Sheet, SheetHead, Spacer, SqBtn, Title } from "../components/Chrome";
+import { RoasterPicker } from "../components/RoasterPicker";
 import { MAP_STYLE } from "../lib/mapStyle";
 import { fmtTime, PARAMS, stars } from "../lib/format";
 import { mapsUrl, pinKind, pinRadius, pinVoice, ratingLabel, topLikedFlavours } from "../lib/roasters";
@@ -142,25 +143,10 @@ const RoasterMap = ({ roasters, onPick }: { roasters: Roaster[]; onPick: (r: Roa
 
 const RoasterSheet = ({ roaster: r, onClose, onPatched }: { roaster: Roaster; onClose: () => void; onPatched: (r: Roaster) => void }) => {
   const s = useStore();
+  // A wrong pin is fixed the way a missing one is: pick from the candidates, or say none of them.
   const [fixing, setFixing] = useState(false);
-  const [query, setQuery] = useState("");
-  const [busy, setBusy] = useState(false);
   const [wished, setWished] = useState(r.wished);
   const [reading, setReading] = useState<RoasterVoice | null>(null);
-
-  const relocate = async () => {
-    setBusy(true);
-    try {
-      const moved = await api.relocateRoaster(r.id, query.trim() || null);
-      onPatched(moved);
-      setFixing(false);
-      s.showToast(moved.located ? `${moved.name} moved to ${moved.address ?? "its new spot"}` : `Nothing found for "${query.trim() || r.name}"`);
-    } catch (e) {
-      s.showToast(e instanceof ApiError && e.status === 503 ? "Roaster lookup is not configured on this deployment" : "Could not move the roaster");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   // A place you mean to go, marked on the map you already have open (§4).
   const wish = async () => {
@@ -176,6 +162,7 @@ const RoasterSheet = ({ roaster: r, onClose, onPatched }: { roaster: Roaster; on
   };
 
   if (reading) return <RecipesSheet roaster={r} voice={reading} onBack={() => setReading(null)} onClose={onClose} />;
+  if (fixing) return <RoasterPicker roasterId={r.id} name={r.name} onPlaced={(moved) => { onPatched(moved); setFixing(false); }} onClose={() => setFixing(false)} />;
 
   return (
     <>
@@ -206,20 +193,12 @@ const RoasterSheet = ({ roaster: r, onClose, onPatched }: { roaster: Roaster; on
           </Pressable>
         ))}
 
-        {fixing ? (
-          <View style={st.relocate}>
-            <TextInput value={query} onChangeText={setQuery} placeholder={`${r.name}, city or street`} placeholderTextColor={C.text45} autoFocus
-              onSubmitEditing={() => { if (!busy) void relocate(); }} style={st.relocateInput} />
-            <Act disabled={busy} onPress={() => void relocate()} style={{ height: 44 }}>{busy ? "…" : "FIND →"}</Act>
-          </View>
-        ) : (
-          <View style={{ flexDirection: "row", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-            <Act on={wished} onPress={() => void wish()}>{wished ? "✦ WANT TO VISIT" : "WANT TO VISIT"}</Act>
-            <Act onPress={() => void Linking.openURL(mapsUrl(r))}>OPEN IN MAPS →</Act>
-            {r.website && <Act onPress={() => void Linking.openURL(r.website!)}>WEBSITE →</Act>}
-            <Act quiet onPress={() => setFixing(true)}>{r.located ? "WRONG PLACE?" : "FIND IT"}</Act>
-          </View>
-        )}
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+          <Act on={wished} onPress={() => void wish()}>{wished ? "✦ WANT TO VISIT" : "WANT TO VISIT"}</Act>
+          <Act onPress={() => void Linking.openURL(mapsUrl(r))}>OPEN IN MAPS →</Act>
+          {r.website && <Act onPress={() => void Linking.openURL(r.website!)}>WEBSITE →</Act>}
+          <Act quiet onPress={() => setFixing(true)}>{r.located ? "WRONG PLACE?" : "FIND IT"}</Act>
+        </View>
         <Cta panel label="DONE" style={{ marginTop: 16 }} onPress={onClose} />
       </Sheet>
     </>
@@ -340,8 +319,6 @@ const st = StyleSheet.create({
   voiceSub: { ...g(400, 11, 0, C.text50), marginTop: 2 },
   voiceStars: { fontSize: 11, letterSpacing: 1, color: C.copperLight },
   voiceAvg: { ...c(700, 9, 1, C.text50), marginTop: 2 },
-  relocate: { flexDirection: "row", gap: 8, marginTop: 14 },
-  relocateInput: { ...g(500, 14), flex: 1, minWidth: 0, height: 44, borderWidth: 1, borderColor: C.copper45, paddingHorizontal: 12, paddingVertical: 0 },
   recipe: { borderWidth: 1, borderColor: C.copper30, padding: 14 },
   nums: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 },
   num: { width: "31%", flexGrow: 1, borderWidth: 1, borderColor: C.copper20, paddingVertical: 6, paddingHorizontal: 4, alignItems: "center" },

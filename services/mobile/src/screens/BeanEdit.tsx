@@ -4,6 +4,7 @@ import { api, ApiError } from "../api/client";
 import type { Bean } from "../api/types";
 import { Cta, Hint, Nav, Screen, SqBtn, Title } from "../components/Chrome";
 import { Field, Notes } from "../components/Ledger";
+import { RoasterPicker } from "../components/RoasterPicker";
 import { useStore } from "../state/store";
 
 type Key = "name" | "roaster" | "origin" | "process" | "roastDate" | "producer" | "varietal" | "altitude" | "roastLevel" | "weight";
@@ -55,6 +56,8 @@ export const BeanEdit = () => {
   const [notes, setNotes] = useState<string[]>(() => bean?.declaredNotes ?? []);
   const [editing, setEditing] = useState<Key | null>(null);
   const [saving, setSaving] = useState(false);
+  // A corrected roaster name may point at a place the app has not seen: ask where it is before going back.
+  const [placing, setPlacing] = useState<Bean | null>(null);
 
   useEffect(() => { if (!bean) s.setScreen("library"); });
   if (!bean) return null;
@@ -81,8 +84,9 @@ export const BeanEdit = () => {
         clearWeight: values.weight.trim() === "",
       });
       s.patchBean(updated);
-      back();
       s.showToast(`${updated.name} updated`);
+      if (updated.roasterId && !updated.roasterResolved) setPlacing(updated);
+      else back();
     } catch (e) {
       setSaving(false);
       s.showToast(e instanceof ApiError ? `Not saved — ${e.message}` : "Not saved — the brew log could not be reached");
@@ -109,6 +113,11 @@ export const BeanEdit = () => {
           <Cta label={saving ? "SAVING…" : "SAVE BAG"} onPress={save} disabled={saving} />
         </View>
       </KeyboardAvoidingView>
+      {placing && placing.roasterId && (
+        <RoasterPicker roasterId={placing.roasterId} name={placing.roaster ?? values.roaster}
+          onPlaced={(r) => { s.patchBean({ ...placing, roasterLocated: r.located, roasterResolved: true }); back(); }}
+          onClose={back} />
+      )}
     </Screen>
   );
 };

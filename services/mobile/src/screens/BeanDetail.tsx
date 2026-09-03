@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Act, Chips, Empty, Link, Nav, Rule, Screen, Spacer, SqBtn, TagDash, TagSolid, Title } from "../components/Chrome";
+import { RoasterPicker } from "../components/RoasterPicker";
 import { daysOffRoast, describeDelta, describeFull, fmtTime, stars, whenLabel } from "../lib/format";
 import { useStore } from "../state/store";
 import { c, g, tabular } from "../theme/text";
@@ -10,6 +11,7 @@ export const BeanDetail = () => {
   const s = useStore();
   const bean = s.currentBean;
   const [open, setOpen] = useState<string | null>(null);
+  const [finding, setFinding] = useState(false);
   useEffect(() => { if (!bean) s.setScreen("library"); });
   if (!bean) return null;
   const hist = s.brewsFor(bean.id); // newest first
@@ -29,7 +31,9 @@ export const BeanDetail = () => {
         <Text style={st.name}>{bean.name}</Text>
         <Text style={st.sub}>
           {bean.roaster && bean.roasterId
-            ? <Text style={st.roasterLink} onPress={openMap}>{bean.roaster} ↗</Text>
+            ? bean.roasterLocated
+              ? <Text style={st.roasterLink} onPress={openMap}>{bean.roaster} ↗</Text>
+              : <>{bean.roaster} <Text style={st.roasterLink} onPress={() => setFinding(true)}>FIND IT →</Text></>
             : bean.roaster}
           {bean.roaster && originLine ? " — " : ""}
           {originLine}
@@ -83,6 +87,11 @@ export const BeanDetail = () => {
           </Act>
         </View>
       </ScrollView>
+      {finding && bean.roasterId && (
+        <RoasterPicker roasterId={bean.roasterId} name={bean.roaster ?? ""}
+          onPlaced={(r) => { s.patchBean({ ...bean, roasterLocated: r.located, roasterResolved: true }); setFinding(false); }}
+          onClose={() => setFinding(false)} />
+      )}
     </Screen>
   );
 };

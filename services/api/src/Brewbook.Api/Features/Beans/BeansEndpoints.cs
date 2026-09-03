@@ -17,13 +17,13 @@ public static class BeansEndpoints
 
         g.MapGet("/", async (CurrentUser me, BrewbookDbContext db, TimeProvider clock, CancellationToken ct) =>
         {
-            var beans = (await db.Beans.Where(b => b.UserId == me.Id).ToListAsync(ct)).OrderByDescending(b => b.CreatedAt).ToList();
+            var beans = (await db.Beans.Include(b => b.LinkedRoaster).Where(b => b.UserId == me.Id).ToListAsync(ct)).OrderByDescending(b => b.CreatedAt).ToList();
             return Results.Ok(await Project(db, beans, clock, ct));
         });
 
         g.MapGet("/{id:guid}", async (Guid id, CurrentUser me, BrewbookDbContext db, TimeProvider clock, CancellationToken ct) =>
         {
-            var bean = await db.Beans.SingleOrDefaultAsync(b => b.Id == id && b.UserId == me.Id, ct);
+            var bean = await db.Beans.Include(b => b.LinkedRoaster).SingleOrDefaultAsync(b => b.Id == id && b.UserId == me.Id, ct);
             return bean is null ? Results.NotFound() : Results.Ok((await Project(db, [bean], clock, ct))[0]);
         });
 
@@ -62,12 +62,14 @@ public static class BeansEndpoints
             }
             // Bag stamps show up on the passport; the bean response stays a bean.
             await achievements.EvaluateAsync(me.Id, null, ct);
+            // The client decides from the response whether to offer the roaster picker, so the row's state has to be on it.
+            if (bean.RoasterId is not null && bean.LinkedRoaster is null) await db.Entry(bean).Reference(b => b.LinkedRoaster).LoadAsync(ct);
             return Results.Created($"/api/v1/beans/{bean.Id}", BeanResponse.From(bean, 0, null, 0m, clock.GetUtcNow()));
         });
 
         g.MapPatch("/{id:guid}", async (Guid id, UpdateBeanRequest req, CurrentUser me, BrewbookDbContext db, TimeProvider clock, CancellationToken ct) =>
         {
-            var bean = await db.Beans.SingleOrDefaultAsync(b => b.Id == id && b.UserId == me.Id, ct);
+            var bean = await db.Beans.Include(b => b.LinkedRoaster).SingleOrDefaultAsync(b => b.Id == id && b.UserId == me.Id, ct);
             if (bean is null) return Results.NotFound();
 
             if (req.Name is not null)
@@ -99,7 +101,9 @@ public static class BeansEndpoints
             if (req.Roaster is not null && RoasterName.Display(req.Roaster) != bean.Roaster)
             {
                 bean.Roaster = RoasterName.Display(req.Roaster);
+                bean.LinkedRoaster = null;
                 await RoasterLinker.LinkAndSaveAsync(db, bean, clock, ct);
+                if (bean.RoasterId is not null && bean.LinkedRoaster is null) await db.Entry(bean).Reference(b => b.LinkedRoaster).LoadAsync(ct);
             }
             else
             {

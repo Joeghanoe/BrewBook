@@ -70,6 +70,35 @@ public class GooglePlacesLocatorTests
     }
 
     [Fact]
+    public void Search_sorts_candidates_by_distance_from_the_drinker()
+    {
+        // Two "Symple"s: one in Amsterdam, one in Bogotá. Standing in Utrecht, Amsterdam comes first whatever Places ranked.
+        var res = new GooglePlacesLocator.Response([
+            new("bog", new("Symple Coffee", "en"), "Carrera 7, Bogotá", new(4.65, -74.05), null),
+            new("ams", new("Symple Roasters", "en"), "Amsterdam", new(52.37, 4.90), null),
+            new("skip", new("No location", null), null, null, null),
+        ]);
+        var r = GooglePlacesLocator.MapMany(res, 52.09, 5.12);
+        Assert.Equal(LocateStatus.Located, r.Status);
+        Assert.Equal(["ams", "bog"], r.Candidates.Select(c => c.PlaceId));
+        Assert.InRange(r.Candidates[0].DistanceKm!.Value, 30, 40);
+        Assert.True(r.Candidates[1].DistanceKm > 8000);
+    }
+
+    [Fact]
+    public void Search_without_a_position_keeps_the_providers_order_and_no_distances()
+    {
+        var res = new GooglePlacesLocator.Response([
+            new("bog", new("Symple Coffee", "en"), null, new(4.65, -74.05), null),
+            new("ams", new("Symple Roasters", "en"), null, new(52.37, 4.90), null),
+        ]);
+        var r = GooglePlacesLocator.MapMany(res, null, null);
+        Assert.Equal(["bog", "ams"], r.Candidates.Select(c => c.PlaceId));
+        Assert.All(r.Candidates, c => Assert.Null(c.DistanceKm));
+        Assert.Equal(LocateStatus.NotFound, GooglePlacesLocator.MapMany(new GooglePlacesLocator.Response([]), null, null).Status);
+    }
+
+    [Fact]
     public void No_places_is_not_found_never_a_fake_location()
     {
         Assert.Equal(LocateStatus.NotFound, GooglePlacesLocator.Map(new GooglePlacesLocator.Response([])).Status);
@@ -310,6 +339,94 @@ public class RoastersApiTests
         Assert.Equal(HttpStatusCode.NotFound, (await bob.PostAsJsonAsync($"/api/v1/roasters/{bean.RoasterId}/relocate", new RelocateRoasterRequest(null))).StatusCode);
     }
 
+    [Fact]
+    public async Task Unconfigured_search_says_so_instead_of_guessing()
+    {
+        using var f = new ApiFactory();
+        var c = f.ClientFor("ada@example.com");
+        var r = await c.GetFromJsonAsync<RoasterSearchResponse>("/api/v1/roasters/search?q=Symple");
+        Assert.False(r!.Available);
+        Assert.Empty(r.Candidates);
+        Assert.Equal(HttpStatusCode.BadRequest, (await c.GetAsync("/api/v1/roasters/search?q=")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await c.GetAsync("/api/v1/roasters/search?q=Symple&lat=52")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Search_hands_the_position_to_the_locator_and_returns_its_candidates()
+    {
+        var locator = new FakeLocator(LocateResult.NotFound)
+        {
+            NextSearch = new SearchResult(LocateStatus.Located, [
+                new RoasterCandidate("ams", "Symple Roasters", "Amsterdam", 52.37, 4.90, "https://symple.nl", 34.26),
+                new RoasterCandidate("bog", "Symple Coffee", "Bogotá", 4.65, -74.05, null, 9012.4),
+            ]),
+        };
+        using var f = new ApiFactory(s => s.Replace(ServiceDescriptor.Singleton<IRoasterLocator>(locator)));
+        var c = f.ClientFor("ada@example.com");
+        var r = await c.GetFromJsonAsync<RoasterSearchResponse>("/api/v1/roasters/search?q=Symple&lat=52.09&lng=5.12");
+        Assert.True(r!.Available);
+        Assert.Equal(["ams", "bog"], r.Candidates.Select(x => x.PlaceId));
+        Assert.Equal(34.3, r.Candidates[0].DistanceKm);
+        Assert.Equal(("Symple", 52.09, 5.12), Assert.Single(locator.Searches));
+    }
+
+    [Fact]
+    public async Task Placing_a_roaster_pins_it_and_the_list_does_not_look_it_up_again()
+    {
+        var locator = new FakeLocator(new LocateResult(LocateStatus.Located, new RoasterPlace("wrong", "Symple Coffee", "Bogotá", 4.65, -74.05, null)));
+        using var f = new ApiFactory(s => s.Replace(ServiceDescriptor.Singleton<IRoasterLocator>(locator)));
+        var ada = f.ClientFor("ada@example.com");
+        var bob = f.ClientFor("bob@example.com");
+
+        var bean = await CreateBean(ada, "El Carmen", "Symple");
+        Assert.False(bean.RoasterResolved);
+        Assert.False(bean.RoasterLocated);
+
+        var res = await ada.PostAsJsonAsync($"/api/v1/roasters/{bean.RoasterId}/place", new PlaceRoasterRequest("ams", "Symple Roasters", "Amsterdam", 52.37, 4.90, "https://symple.nl"));
+        res.EnsureSuccessStatusCode();
+        var placed = (await res.Content.ReadFromJsonAsync<RoasterResponse>())!;
+        Assert.True(placed.Located);
+        Assert.Equal("Amsterdam", placed.Address);
+        Assert.Equal(52.37, placed.Lat);
+        Assert.Equal("https://symple.nl", placed.Website);
+
+        // The user's answer holds: the list call finds the row resolved and never asks the locator.
+        var listed = Assert.Single((await ada.GetFromJsonAsync<List<RoasterResponse>>("/api/v1/roasters"))!);
+        Assert.Equal("Amsterdam", listed.Address);
+        Assert.Empty(locator.Queries);
+
+        var again = (await ada.GetFromJsonAsync<List<BeanResponse>>("/api/v1/beans"))!.Single();
+        Assert.True(again.RoasterResolved);
+        Assert.True(again.RoasterLocated);
+
+        // Someone who never logged this roaster cannot move it.
+        Assert.Equal(HttpStatusCode.NotFound, (await bob.PostAsJsonAsync($"/api/v1/roasters/{bean.RoasterId}/place", new PlaceRoasterRequest(null, null, null, null, null, null))).StatusCode);
+        // A place needs a position.
+        Assert.Equal(HttpStatusCode.BadRequest, (await ada.PostAsJsonAsync($"/api/v1/roasters/{bean.RoasterId}/place", new PlaceRoasterRequest("x", "X", null, null, null, null))).StatusCode);
+    }
+
+    [Fact]
+    public async Task None_of_these_leaves_the_roaster_off_the_map_on_purpose()
+    {
+        var locator = new FakeLocator(new LocateResult(LocateStatus.Located, new RoasterPlace("wrong", "Symple Coffee", "Bogotá", 4.65, -74.05, null)));
+        using var f = new ApiFactory(s => s.Replace(ServiceDescriptor.Singleton<IRoasterLocator>(locator)));
+        var ada = f.ClientFor("ada@example.com");
+        var bean = await CreateBean(ada, "El Carmen", "Symple");
+
+        var res = await ada.PostAsJsonAsync($"/api/v1/roasters/{bean.RoasterId}/place", new PlaceRoasterRequest(null, null, null, null, null, null));
+        res.EnsureSuccessStatusCode();
+        var placed = (await res.Content.ReadFromJsonAsync<RoasterResponse>())!;
+        Assert.False(placed.Located);
+
+        var listed = Assert.Single((await ada.GetFromJsonAsync<List<RoasterResponse>>("/api/v1/roasters"))!);
+        Assert.False(listed.Located);
+        Assert.Empty(locator.Queries);
+
+        var again = (await ada.GetFromJsonAsync<List<BeanResponse>>("/api/v1/beans"))!.Single();
+        Assert.True(again.RoasterResolved);
+        Assert.False(again.RoasterLocated);
+    }
+
     private static async Task<BeanResponse> CreateBean(HttpClient c, string name, string? roaster)
     {
         var res = await c.PostAsJsonAsync("/api/v1/beans", new CreateBeanRequest(name, roaster, "Huila, Colombia", "Washed", null, null, null, null, null, null, null, null));
@@ -331,12 +448,20 @@ public class RoastersApiTests
 file sealed class FakeLocator(LocateResult next) : IRoasterLocator
 {
     public LocateResult Next { get; set; } = next;
+    public SearchResult NextSearch { get; set; } = new(LocateStatus.NotFound, []);
     public List<string> Queries { get; } = [];
+    public List<(string Query, double? Lat, double? Lng)> Searches { get; } = [];
     public bool Configured => true;
 
     public Task<LocateResult> LocateAsync(string query, CancellationToken ct)
     {
         Queries.Add(query);
         return Task.FromResult(Next);
+    }
+
+    public Task<SearchResult> SearchAsync(string query, double? lat, double? lng, int pageSize, CancellationToken ct)
+    {
+        Searches.Add((query, lat, lng));
+        return Task.FromResult(NextSearch);
     }
 }
