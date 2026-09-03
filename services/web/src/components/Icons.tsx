@@ -1,7 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const IDLE_MIN_MS = 55_000, IDLE_SPREAD_MS = 70_000;
 const TWITCHES = ["blink", "slowblink", "aside", "invert", "double"] as const;
+// The home eye: the seal's eye on a 64×44 grid, iris as tall as the opening.
+const GLYPH = { cx: 32, cy: 22, rx: 9.6, ry: 12 };
+const GLYPH_CREASE = "M32 12.5 q6 9.5 0 19";
+const GLYPH_FROM = GLYPH.cx - (2 * (GLYPH.ry + 1) + 3);
 
 /**
  * The eye is decoration with a job (§10): it is also the way into the current bag. It twitches
@@ -10,25 +14,43 @@ const TWITCHES = ["blink", "slowblink", "aside", "invert", "double"] as const;
  */
 export const EyeGlyph = ({ onClick, idle = false }: { onClick?: () => void; idle?: boolean }) => {
   const [twitch, setTwitch] = useState<string | null>(null);
+  const sweepA = useRef<SVGAnimateElement>(null);
+  const sweepB = useRef<SVGAnimateElement>(null);
   useEffect(() => {
     if (!idle) { setTwitch(null); return; }
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     let clear = 0;
     const schedule = (): number => window.setTimeout(() => {
-      setTwitch(TWITCHES[Math.floor(Math.random() * TWITCHES.length)]);
+      const t = TWITCHES[Math.floor(Math.random() * TWITCHES.length)];
+      setTwitch(t);
+      // The invert is the seal's sweep at glyph size: a circle crosses the iris and back.
+      if (t === "invert") { sweepA.current?.beginElement(); window.setTimeout(() => sweepB.current?.beginElement(), 450); }
       clear = window.setTimeout(() => setTwitch(null), 900);
       next = schedule();
     }, IDLE_MIN_MS + Math.random() * IDLE_SPREAD_MS);
     let next = schedule();
     return () => { window.clearTimeout(next); window.clearTimeout(clear); };
   }, [idle]);
+  const sweep = (ref: React.RefObject<SVGAnimateElement | null>) => (
+    <animate ref={ref} attributeName="cx" from={GLYPH_FROM} to={GLYPH.cx} dur="0.35s" begin="indefinite" fill="freeze" calcMode="spline" keySplines=".4 0 .2 1" />
+  );
   return (
     <button onClick={onClick} aria-label="Bean detail" style={{ padding: 4 }}>
-      <svg className={"eye" + (twitch ? " eye-" + twitch : "")} width="44" height="34" viewBox="0 0 64 44" fill="none" stroke="#c2905e" strokeWidth="2">
-        <path d="M4 22 Q32 -4 60 22 Q32 48 4 22 Z" />
-        <g className="iris">
-          <ellipse cx="32" cy="22" rx="9" ry="10" />
-          <path d="M32 13 q5 9 0 18" />
+      <svg className={"eye" + (twitch && twitch !== "invert" ? " eye-" + twitch : "")} width="44" height="30" viewBox="0 0 64 44" fill="none" stroke="#c2905e" strokeWidth="2" strokeLinejoin="round">
+        <defs>
+          <clipPath id="glyph-iris"><ellipse cx={GLYPH.cx} cy={GLYPH.cy} rx={GLYPH.rx} ry={GLYPH.ry} /></clipPath>
+          <clipPath id="glyph-a"><circle cy={GLYPH.cy} r={GLYPH.ry + 1} cx={GLYPH_FROM}>{sweep(sweepA)}</circle></clipPath>
+          <clipPath id="glyph-b"><circle cy={GLYPH.cy} r={GLYPH.ry + 1} cx={GLYPH_FROM}>{sweep(sweepB)}</circle></clipPath>
+        </defs>
+        <path d="M2 22 Q32 -2 62 22 Q32 46 2 22 Z" />
+        <g className="iris" stroke="none">
+          <ellipse cx={GLYPH.cx} cy={GLYPH.cy} rx={GLYPH.rx} ry={GLYPH.ry} fill="#3a2a24" />
+          <path d={GLYPH_CREASE} stroke="#c2905e" strokeWidth="1.6" strokeLinecap="round" />
+          <g clipPath="url(#glyph-iris)">
+            <g clipPath="url(#glyph-a)"><ellipse cx={GLYPH.cx} cy={GLYPH.cy} rx={GLYPH.rx} ry={GLYPH.ry} fill="#c2905e" /><path d={GLYPH_CREASE} stroke="#3a2a24" strokeWidth="1.6" strokeLinecap="round" /></g>
+            <g clipPath="url(#glyph-b)"><ellipse cx={GLYPH.cx} cy={GLYPH.cy} rx={GLYPH.rx} ry={GLYPH.ry} fill="#3a2a24" /><path d={GLYPH_CREASE} stroke="#c2905e" strokeWidth="1.6" strokeLinecap="round" /></g>
+          </g>
+          <ellipse cx={GLYPH.cx} cy={GLYPH.cy} rx={GLYPH.rx} ry={GLYPH.ry} stroke="#c2905e" strokeWidth="1.8" />
         </g>
       </svg>
     </button>
@@ -58,25 +80,71 @@ export const CameraIcon = () => (
   </svg>
 );
 
-export const Seal = () => (
-  <svg width="230" height="220" viewBox="0 0 200 190" fill="none">
-    <path d="M100 12 L188 168 L12 168 Z" stroke="#c2905e" strokeWidth="2" />
-    <path d="M100 30 L173 160 L27 160 Z" stroke="rgba(194,144,94,.4)" strokeWidth="1" />
-    <g style={{ animation: "bb-spin 26s linear infinite", transformOrigin: "100px 122px" }}>
-      <circle cx="100" cy="122" r="36" stroke="rgba(216,168,111,.7)" strokeWidth="1.6" strokeDasharray="3 8" />
-    </g>
-    <g style={{ animation: "bb-blink 4.2s ease-in-out infinite", transformOrigin: "100px 122px" }}>
-      <path d="M48 122 Q100 78 152 122 Q100 166 48 122 Z" stroke="#d8a86f" strokeWidth="2.4" fill="#1c1a21" />
-      <ellipse cx="100" cy="122" rx="19" ry="21" stroke="#d8a86f" strokeWidth="2.2" fill="rgba(194,144,94,.14)" />
-      <path d="M100 104 q7 18 0 36" stroke="#d8a86f" strokeWidth="2" />
-    </g>
-  </svg>
-);
+/** The Penrose mark: line construction on a 200 grid, bar 17, corner cut 17/sin60. */
+const SEAL_HEX = "M109.82 35 L176.79 151 L166.97 168 L33.03 168 L23.22 151 L90.19 35 Z";
+const SEAL_HOLE = "M100 52 L157.16 151 L42.84 151 Z";
+const SEAL_TWISTS = "M157.16 151 L166.97 168 M42.84 151 L23.22 151 M100 52 L109.82 35";
+const SEAL_LID = "M60 118 Q100 86 140 118 Q100 150 60 118 Z";
+const SEAL_CREASE = "M100 104.2 q7.9 13.8 0 27.6";
+const IRIS = { cx: 100, cy: 118, rx: 12.64, ry: 15.8 };
+const SWEEP_R = IRIS.ry + 1;
+const SWEEP_FROM = IRIS.cx - (2 * SWEEP_R + 4);
+
+/**
+ * The seal rests dark. Every five to ten seconds a circle sweeps across the iris and inverts what it
+ * covers (fill to gold, crease to dark), holds a moment, and a second sweep brings the dark back.
+ * The artwork never moves; only the clip does. Drawn once per mount, so the ids stay unique.
+ */
+export const Seal = () => {
+  // One random rest per mount: 5–10 s dark, then 0.6 s in, 0.3 s hold, 0.6 s back.
+  const t = useMemo(() => {
+    const hold = 5 + Math.random() * 5, total = hold + 1.5;
+    const k = (s: number) => (s / total).toFixed(4);
+    return { dur: `${total.toFixed(2)}s`, a: `0;${k(hold)};${k(hold + 0.6)};1`, b: `0;${k(hold + 0.9)};1;1` };
+  }, []);
+  const sweep = (keyTimes: string) => (
+    <animate attributeName="cx" values={`${SWEEP_FROM};${SWEEP_FROM};${IRIS.cx};${IRIS.cx}`} keyTimes={keyTimes} dur={t.dur}
+      repeatCount="indefinite" calcMode="spline" keySplines="0 0 1 1;.4 0 .2 1;0 0 1 1" />
+  );
+  const iris = (fill: string, crease: string) => (
+    <>
+      <ellipse cx={IRIS.cx} cy={IRIS.cy} rx={IRIS.rx} ry={IRIS.ry} fill={fill} />
+      <path d={SEAL_CREASE} fill="none" stroke={crease} strokeWidth="1.35" strokeLinecap="round" />
+    </>
+  );
+  return (
+    <svg className="seal" width="230" height="230" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+      <defs>
+        <clipPath id="seal-hole"><path d={SEAL_HOLE} /></clipPath>
+        <clipPath id="seal-iris"><ellipse cx={IRIS.cx} cy={IRIS.cy} rx={IRIS.rx} ry={IRIS.ry} /></clipPath>
+        <clipPath id="seal-a"><circle cy={IRIS.cy} r={SWEEP_R} cx={SWEEP_FROM}>{sweep(t.a)}</circle></clipPath>
+        <clipPath id="seal-b"><circle cy={IRIS.cy} r={SWEEP_R} cx={SWEEP_FROM}>{sweep(t.b)}</circle></clipPath>
+      </defs>
+      <g stroke="#d8a86f" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round">
+        <path d={SEAL_HEX} /><path d={SEAL_HOLE} /><path d={SEAL_TWISTS} />
+      </g>
+      <g style={{ animation: "bb-spin 26s linear infinite", transformOrigin: "100px 118px" }}>
+        <circle cx="100" cy="118" r="26.6" stroke="#d8a86f" strokeOpacity=".9" strokeWidth="1.4" strokeDasharray="5 5" />
+      </g>
+      <g clipPath="url(#seal-hole)">
+        <path d={SEAL_LID} stroke="#d8a86f" strokeWidth="1.8" strokeLinejoin="round" />
+        {iris("#3a2a24", "#d8a86f")}
+        <g clipPath="url(#seal-iris)">
+          <g clipPath="url(#seal-a)">{iris("#d8a86f", "#3a2a24")}</g>
+          <g clipPath="url(#seal-b)">{iris("#3a2a24", "#d8a86f")}</g>
+        </g>
+        <ellipse cx={IRIS.cx} cy={IRIS.cy} rx={IRIS.rx} ry={IRIS.ry} stroke="#d8a86f" strokeWidth="1.45" />
+      </g>
+    </svg>
+  );
+};
 
 export const ScanEye = () => (
-  <svg width="70" height="54" viewBox="0 0 72 52" fill="none" stroke="#d8a86f" strokeWidth="2">
-    <path d="M8 26 Q36 -2 64 26 Q36 54 8 26 Z" />
-    <g style={{ animation: "bb-spin 1.4s linear infinite", transformOrigin: "36px 26px" }}><circle cx="36" cy="26" r="14" strokeDasharray="4 7" /></g>
+  <svg width="70" height="50" viewBox="0 0 72 52" fill="none" stroke="#d8a86f" strokeWidth="2" strokeLinejoin="round">
+    <path d="M4 26 Q36 0 68 26 Q36 52 4 26 Z" />
+    <g style={{ animation: "bb-spin 1.4s linear infinite", transformOrigin: "36px 26px" }}><circle cx="36" cy="26" r="17" strokeWidth="1.4" strokeDasharray="4 5" /></g>
+    <ellipse cx="36" cy="26" rx="10" ry="12.5" fill="#3a2a24" />
+    <path d="M36 16 q6 10 0 20" strokeWidth="1.6" strokeLinecap="round" />
   </svg>
 );
 

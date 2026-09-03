@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Easing, Pressable } from "react-native";
-import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
-import { useBlinkTransform, useSpinTransform } from "./Anim";
+import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, Path, Rect } from "react-native-svg";
+import { useSpinTransform } from "./Anim";
 
 const AG = Animated.createAnimatedComponent(G);
 
 const IDLE_MIN_MS = 55_000, IDLE_SPREAD_MS = 70_000;
 const TWITCHES = ["blink", "slowblink", "aside", "invert", "double"] as const;
 type Twitch = (typeof TWITCHES)[number];
+// The home eye: the seal's eye on a 64×44 grid, iris as tall as the opening. Mirror of web.
+const GLYPH = { cx: 32, cy: 22, rx: 9.6, ry: 12 };
+const GLYPH_CREASE = "M32 12.5 q6 9.5 0 19";
+const GLYPH_FROM = GLYPH.cx - (2 * (GLYPH.ry + 1) + 3);
 
 /**
  * The eye is decoration with a job (§10): it is also the way into the current bag. It twitches
@@ -17,16 +21,28 @@ type Twitch = (typeof TWITCHES)[number];
 export const EyeGlyph = ({ onPress, idle = false }: { onPress?: () => void; idle?: boolean }) => {
   const squeeze = useRef(new Animated.Value(1)).current;
   const aside = useRef(new Animated.Value(0)).current;
-  const [inverted, setInverted] = useState(false);
+  const [mask, setMask] = useState({ a: GLYPH_FROM, b: GLYPH_FROM });
   useEffect(() => {
     if (!idle) return;
     let cancelled = false;
     let next: ReturnType<typeof setTimeout> | null = null;
-    let clear: ReturnType<typeof setTimeout> | null = null;
+    let frame = 0;
     const blink = (ms: number, times = 1) => Animated.loop(Animated.sequence([
       Animated.timing(squeeze, { toValue: 0.06, duration: ms * 0.45, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
       Animated.timing(squeeze, { toValue: 1, duration: ms * 0.55, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
     ]), { iterations: times }).start();
+    // The invert is the seal's sweep at glyph size: a circle crosses the iris and back.
+    const ease = (x: number) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
+    const sweep = (key: "a" | "b", done: () => void) => {
+      const started = Date.now();
+      const step = () => {
+        if (cancelled) return;
+        const x = Math.min(1, (Date.now() - started) / 350);
+        setMask((m) => ({ ...m, [key]: GLYPH_FROM + (GLYPH.cx - GLYPH_FROM) * ease(x) }));
+        if (x < 1) frame = requestAnimationFrame(step); else done();
+      };
+      frame = requestAnimationFrame(step);
+    };
     const play = (t: Twitch) => {
       if (t === "blink") blink(340);
       else if (t === "slowblink") blink(850);
@@ -36,7 +52,7 @@ export const EyeGlyph = ({ onPress, idle = false }: { onPress?: () => void; idle
         Animated.delay(270),
         Animated.timing(aside, { toValue: 0, duration: 315, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
       ]).start();
-      else { setInverted(true); clear = setTimeout(() => setInverted(false), 350); }
+      else sweep("a", () => { next = setTimeout(() => sweep("b", () => setMask({ a: GLYPH_FROM, b: GLYPH_FROM })), 100); });
     };
     const schedule = () => {
       next = setTimeout(() => {
@@ -46,16 +62,31 @@ export const EyeGlyph = ({ onPress, idle = false }: { onPress?: () => void; idle
       }, IDLE_MIN_MS + Math.random() * IDLE_SPREAD_MS);
     };
     AccessibilityInfo.isReduceMotionEnabled().then((reduce) => { if (!reduce && !cancelled) schedule(); }).catch(() => schedule());
-    return () => { cancelled = true; if (next) clearTimeout(next); if (clear) clearTimeout(clear); squeeze.setValue(1); aside.setValue(0); setInverted(false); };
+    return () => { cancelled = true; if (next) clearTimeout(next); cancelAnimationFrame(frame); squeeze.setValue(1); aside.setValue(0); setMask({ a: GLYPH_FROM, b: GLYPH_FROM }); };
   }, [idle, squeeze, aside]);
+  const iris = (fill: string, crease: string) => (
+    <>
+      <Ellipse cx={GLYPH.cx} cy={GLYPH.cy} rx={GLYPH.rx} ry={GLYPH.ry} fill={fill} />
+      <Path d={GLYPH_CREASE} fill="none" stroke={crease} strokeWidth={1.6} strokeLinecap="round" />
+    </>
+  );
   return (
     <Pressable onPress={onPress} accessibilityLabel="Bean detail" style={{ padding: 4 }}>
       <Animated.View style={{ transform: [{ scaleY: squeeze }] }}>
-        <Svg width={44} height={34} viewBox="0 0 64 44" fill="none" stroke="#c2905e" strokeWidth={2}>
-          <Path d="M4 22 Q32 -4 60 22 Q32 48 4 22 Z" fill={inverted ? "#c2905e" : "none"} />
-          <AG translateX={aside}>
-            <Ellipse cx={32} cy={22} rx={9} ry={10} />
-            <Path d="M32 13 q5 9 0 18" />
+        <Svg width={44} height={30} viewBox="0 0 64 44" fill="none" stroke="#c2905e" strokeWidth={2} strokeLinejoin="round">
+          <Defs>
+            <ClipPath id="glyph-iris"><Ellipse cx={GLYPH.cx} cy={GLYPH.cy} rx={GLYPH.rx} ry={GLYPH.ry} /></ClipPath>
+            <ClipPath id="glyph-a"><Circle cy={GLYPH.cy} r={GLYPH.ry + 1} cx={mask.a} /></ClipPath>
+            <ClipPath id="glyph-b"><Circle cy={GLYPH.cy} r={GLYPH.ry + 1} cx={mask.b} /></ClipPath>
+          </Defs>
+          <Path d="M2 22 Q32 -2 62 22 Q32 46 2 22 Z" />
+          <AG translateX={aside} stroke="none">
+            {iris("#3a2a24", "#c2905e")}
+            <G clipPath="url(#glyph-iris)">
+              <G clipPath="url(#glyph-a)">{iris("#c2905e", "#3a2a24")}</G>
+              <G clipPath="url(#glyph-b)">{iris("#3a2a24", "#c2905e")}</G>
+            </G>
+            <Ellipse cx={GLYPH.cx} cy={GLYPH.cy} rx={GLYPH.rx} ry={GLYPH.ry} stroke="#c2905e" strokeWidth={1.8} />
           </AG>
         </Svg>
       </Animated.View>
@@ -86,21 +117,79 @@ export const CameraIcon = () => (
   </Svg>
 );
 
+/** The Penrose mark: line construction on a 200 grid, bar 17, corner cut 17/sin60. Mirror of web. */
+const SEAL_HEX = "M109.82 35 L176.79 151 L166.97 168 L33.03 168 L23.22 151 L90.19 35 Z";
+const SEAL_HOLE = "M100 52 L157.16 151 L42.84 151 Z";
+const SEAL_TWISTS = "M157.16 151 L166.97 168 M42.84 151 L23.22 151 M100 52 L109.82 35";
+const SEAL_LID = "M60 118 Q100 86 140 118 Q100 150 60 118 Z";
+const SEAL_CREASE = "M100 104.2 q7.9 13.8 0 27.6";
+const IRIS = { cx: 100, cy: 118, rx: 12.64, ry: 15.8 };
+const SWEEP_R = IRIS.ry + 1;
+const SWEEP_FROM = IRIS.cx - (2 * SWEEP_R + 4);
+const SWEEP_MS = 600, SWEEP_HOLD_MS = 300;
+
+/**
+ * The seal rests dark. Every five to ten seconds a circle sweeps across the iris and inverts what it
+ * covers (fill to gold, crease to dark), holds a moment, and a second sweep brings the dark back.
+ * The artwork never moves; only the clip does. The clip circles are driven from a frame loop
+ * because animated props do not reach a ClipPath child reliably.
+ */
 export const Seal = ({ scale = 1 }: { scale?: number }) => {
-  const spin = useSpinTransform(26_000, 100, 122);
-  const blink = useBlinkTransform(4200, 100, 122);
+  const spin = useSpinTransform(26_000, 100, 118);
+  const [mask, setMask] = useState({ a: SWEEP_FROM, b: SWEEP_FROM });
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let frame = 0;
+    const ease = (x: number) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
+    const at = (x: number) => SWEEP_FROM + (IRIS.cx - SWEEP_FROM) * ease(Math.min(1, x));
+    const sweep = (key: "a" | "b", done: () => void) => {
+      const started = Date.now();
+      const step = () => {
+        if (cancelled) return;
+        const x = (Date.now() - started) / SWEEP_MS;
+        setMask((m) => ({ ...m, [key]: at(x) }));
+        if (x < 1) frame = requestAnimationFrame(step); else done();
+      };
+      frame = requestAnimationFrame(step);
+    };
+    const rest = () => {
+      timer = setTimeout(() => sweep("a", () => {
+        timer = setTimeout(() => sweep("b", () => { setMask({ a: SWEEP_FROM, b: SWEEP_FROM }); rest(); }), SWEEP_HOLD_MS);
+      }), 5000 + Math.random() * 5000);
+    };
+    AccessibilityInfo.isReduceMotionEnabled().then((reduce) => { if (!reduce && !cancelled) rest(); }).catch(() => rest());
+    return () => { cancelled = true; if (timer) clearTimeout(timer); cancelAnimationFrame(frame); };
+  }, []);
+  const iris = (fill: string, crease: string) => (
+    <>
+      <Ellipse cx={IRIS.cx} cy={IRIS.cy} rx={IRIS.rx} ry={IRIS.ry} fill={fill} />
+      <Path d={SEAL_CREASE} fill="none" stroke={crease} strokeWidth={1.35} strokeLinecap="round" />
+    </>
+  );
   return (
-    <Svg width={230 * scale} height={220 * scale} viewBox="0 0 200 190" fill="none">
-      <Path d="M100 12 L188 168 L12 168 Z" stroke="#c2905e" strokeWidth={2} />
-      <Path d="M100 30 L173 160 L27 160 Z" stroke="rgba(194,144,94,.4)" strokeWidth={1} />
+    <Svg width={230 * scale} height={230 * scale} viewBox="0 0 200 200" fill="none">
+      <Defs>
+        <ClipPath id="seal-hole"><Path d={SEAL_HOLE} /></ClipPath>
+        <ClipPath id="seal-iris"><Ellipse cx={IRIS.cx} cy={IRIS.cy} rx={IRIS.rx} ry={IRIS.ry} /></ClipPath>
+        <ClipPath id="seal-a"><Circle cy={IRIS.cy} r={SWEEP_R} cx={mask.a} /></ClipPath>
+        <ClipPath id="seal-b"><Circle cy={IRIS.cy} r={SWEEP_R} cx={mask.b} /></ClipPath>
+      </Defs>
+      <G stroke="#d8a86f" strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round">
+        <Path d={SEAL_HEX} /><Path d={SEAL_HOLE} /><Path d={SEAL_TWISTS} />
+      </G>
       <AG transform={spin}>
-        <Circle cx={100} cy={122} r={36} stroke="rgba(216,168,111,.7)" strokeWidth={1.6} strokeDasharray="3 8" />
+        <Circle cx={100} cy={118} r={26.6} stroke="#d8a86f" strokeOpacity={0.9} strokeWidth={1.4} strokeDasharray="5 5" />
       </AG>
-      <AG transform={blink}>
-        <Path d="M48 122 Q100 78 152 122 Q100 166 48 122 Z" stroke="#d8a86f" strokeWidth={2.4} fill="#1c1a21" />
-        <Ellipse cx={100} cy={122} rx={19} ry={21} stroke="#d8a86f" strokeWidth={2.2} fill="rgba(194,144,94,.14)" />
-        <Path d="M100 104 q7 18 0 36" stroke="#d8a86f" strokeWidth={2} />
-      </AG>
+      <G clipPath="url(#seal-hole)">
+        <Path d={SEAL_LID} stroke="#d8a86f" strokeWidth={1.8} strokeLinejoin="round" />
+        {iris("#3a2a24", "#d8a86f")}
+        <G clipPath="url(#seal-iris)">
+          <G clipPath="url(#seal-a)">{iris("#d8a86f", "#3a2a24")}</G>
+          <G clipPath="url(#seal-b)">{iris("#3a2a24", "#d8a86f")}</G>
+        </G>
+        <Ellipse cx={IRIS.cx} cy={IRIS.cy} rx={IRIS.rx} ry={IRIS.ry} stroke="#d8a86f" strokeWidth={1.45} />
+      </G>
     </Svg>
   );
 };
@@ -108,9 +197,11 @@ export const Seal = ({ scale = 1 }: { scale?: number }) => {
 export const ScanEye = () => {
   const spin = useSpinTransform(1400, 36, 26);
   return (
-    <Svg width={70} height={54} viewBox="0 0 72 52" fill="none" stroke="#d8a86f" strokeWidth={2}>
-      <Path d="M8 26 Q36 -2 64 26 Q36 54 8 26 Z" />
-      <AG transform={spin}><Circle cx={36} cy={26} r={14} strokeDasharray="4 7" /></AG>
+    <Svg width={70} height={50} viewBox="0 0 72 52" fill="none" stroke="#d8a86f" strokeWidth={2} strokeLinejoin="round">
+      <Path d="M4 26 Q36 0 68 26 Q36 52 4 26 Z" />
+      <AG transform={spin}><Circle cx={36} cy={26} r={17} strokeWidth={1.4} strokeDasharray="4 5" /></AG>
+      <Ellipse cx={36} cy={26} rx={10} ry={12.5} fill="#3a2a24" />
+      <Path d="M36 16 q6 10 0 20" strokeWidth={1.6} strokeLinecap="round" />
     </Svg>
   );
 };
