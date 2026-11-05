@@ -1,7 +1,7 @@
 # Brewbook
 
 A personal coffee brew log, mobile-first. One brew ticket per bag; adjust, time, rate, tag.
-
+22222223 r323 2r3e3 2e32 e
 - `services/web` — React + Vite SPA (the design lives in `src/styles.css` and the screens)
 - `services/mobile` — the same app as a native iOS and Android build (Expo / React Native); see its README
 - `services/api` — .NET 10 minimal API, EF Core, Postgres
