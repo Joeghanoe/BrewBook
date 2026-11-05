@@ -15,5 +15,5 @@ permissions:
 jobs:
   review:
     if: github.event.issue.pull_request != null && startsWith(github.event.comment.body, '/golden-path-review')
-    uses: Joeghanoe/Guiderail/.github/workflows/golden-path-review.yml@main
+    uses: Joeghanoe/Guiderail/.github/workflows/golden-path-review.lock.yml@main
     secrets: inherit
