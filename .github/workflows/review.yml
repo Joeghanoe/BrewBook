@@ -1,0 +1,9 @@
+name: Golden Path Review
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  review:
+    if: github.event.issue.pull_request != null && startsWith(github.event.comment.body, '/golden-path-review')
+    uses: Joeghanoe/Guiderail/.github/workflows/golden-path-review.lock.yml@main
